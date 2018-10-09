@@ -32,6 +32,8 @@ import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.local.LocalSerializer;
 import com.google.firebase.firestore.local.LocalStore;
+import com.google.firebase.firestore.local.LruDelegate;
+import com.google.firebase.firestore.local.LruGarbageCollector;
 import com.google.firebase.firestore.local.MemoryPersistence;
 import com.google.firebase.firestore.local.Persistence;
 import com.google.firebase.firestore.local.SQLitePersistence;
@@ -61,6 +63,12 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
 
   private static final String LOG_TAG = "FirestoreClient";
 
+  /** How long we wait to try running LRU GC after SDK initialization. */
+  private static final long INITIAL_GC_DELAY_MS = 60 * 1000;
+  /** Minimum amount of time between GC checks, after the first one. */
+  private static final long REGULAR_GC_DELAY_MS = 5 * 60 * 1000;
+
+
   private final DatabaseInfo databaseInfo;
   private final CredentialsProvider credentialsProvider;
   private final AsyncQueue asyncQueue;
@@ -70,6 +78,13 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
   private RemoteStore remoteStore;
   private SyncEngine syncEngine;
   private EventManager eventManager;
+
+  // LRU-related
+  private boolean gcHasRun = false;
+  private final long initialGcDelayMs = INITIAL_GC_DELAY_MS;
+  private final long regularGcDelayMs = REGULAR_GC_DELAY_MS;
+  @Nullable private LruDelegate lruDelegate;
+  @Nullable private AsyncQueue.DelayedTask gcTask;
 
   public FirestoreClient(
       final Context context,
@@ -127,6 +142,9 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
         () -> {
           remoteStore.shutdown();
           persistence.shutdown();
+          if (gcTask != null) {
+            gcTask.cancel();
+          }
         });
   }
 
@@ -203,9 +221,18 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
     if (usePersistence) {
       LocalSerializer serializer =
           new LocalSerializer(new RemoteSerializer(databaseInfo.getDatabaseId()));
-      persistence =
+      // TODO(gsoltis): these params should be based on settings.
+      LruGarbageCollector.Params params = LruGarbageCollector.Params.Disabled();
+      SQLitePersistence sqlitePersistence =
           new SQLitePersistence(
-              context, databaseInfo.getPersistenceKey(), databaseInfo.getDatabaseId(), serializer);
+              context,
+              databaseInfo.getPersistenceKey(),
+              databaseInfo.getDatabaseId(),
+              serializer,
+              params);
+      lruDelegate = sqlitePersistence.getReferenceDelegate();
+      persistence = sqlitePersistence;
+      scheduleLruGarbageCollection();
     } else {
       persistence = MemoryPersistence.createEagerGcMemoryPersistence();
     }
@@ -223,6 +250,15 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
     // queue, etc.) so must be started after LocalStore.
     localStore.start();
     remoteStore.start();
+  }
+
+  private void scheduleLruGarbageCollection() {
+    long delay = gcHasRun ? regularGcDelayMs : initialGcDelayMs;
+    gcTask = asyncQueue.enqueueAfterDelay(AsyncQueue.TimerId.GARBAGE_COLLECTION_DELAY, delay, () -> {
+      localStore.collectGarbage(lruDelegate.getGarbageCollector());
+      gcHasRun = true;
+      scheduleLruGarbageCollection();
+    });
   }
 
   @Override
