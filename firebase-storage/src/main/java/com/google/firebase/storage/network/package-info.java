@@ -12,15 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-apply plugin: 'com.android.library'
-
-def androidVersion = 26
-
-android {
-    compileSdkVersion androidVersion
-}
-
-dependencies {
-    testCompile 'junit:junit:4.11'
-    testCompile 'net.java:quickcheck:0.6'
-}
+/** @hide */
+package com.google.firebase.storage.network;
