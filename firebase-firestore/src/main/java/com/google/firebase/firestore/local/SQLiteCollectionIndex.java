@@ -14,6 +14,7 @@
 
 package com.google.firebase.firestore.local;
 
+import android.util.Log;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.IndexRange;
 import com.google.firebase.firestore.model.DocumentKey;
@@ -33,6 +34,11 @@ public class SQLiteCollectionIndex {
   private final String uid;
 
   SQLiteCollectionIndex(SQLitePersistence persistence, User user) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLiteCollectionIndex", "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+
     this.db = persistence;
     this.uid = user.isAuthenticated() ? user.getUid() : "";
   }

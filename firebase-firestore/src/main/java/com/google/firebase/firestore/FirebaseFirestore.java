@@ -20,6 +20,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
+import android.util.Log;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.security.ProviderInstaller;
@@ -136,6 +137,8 @@ public class FirebaseFirestore {
       CredentialsProvider credentialsProvider,
       AsyncQueue asyncQueue,
       @Nullable FirebaseApp firebaseApp) {
+    Log.i("Firestore", "This is a debug build of the Firestore sdk");
+
     this.context = checkNotNull(context);
     this.databaseId = checkNotNull(checkNotNull(databaseId));
     this.dataConverter = new UserDataConverter(databaseId);

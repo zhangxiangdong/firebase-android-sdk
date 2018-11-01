@@ -20,6 +20,7 @@ import android.content.ContentValues;
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.util.Log;
 import com.google.common.base.Preconditions;
 
 /**
@@ -33,6 +34,12 @@ import com.google.common.base.Preconditions;
  * bumping the VERSION, and adding a call to the migration method from runMigrations.
  */
 class SQLiteSchema {
+  public static void logDebugInfo(String method) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLiteSchema." + method, "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+  }
 
   /**
    * The version of the schema. Increase this by one for each migration added to runMigrations
@@ -46,14 +53,20 @@ class SQLiteSchema {
 
   // PORTING NOTE: The Android client doesn't need to use a serializer to remove held write acks.
   SQLiteSchema(SQLiteDatabase db) {
+    logDebugInfo("SQLiteSchema");
+
     this.db = db;
   }
 
   void runMigrations() {
+    logDebugInfo("runMigrations");
+
     runMigrations(0, VERSION);
   }
 
   void runMigrations(int fromVersion) {
+    logDebugInfo("runMigrations");
+
     runMigrations(fromVersion, VERSION);
   }
 
@@ -65,6 +78,8 @@ class SQLiteSchema {
    *     otherwise for testing.
    */
   void runMigrations(int fromVersion, int toVersion) {
+    logDebugInfo("runMigrations");
+
     // Each case in this switch statement intentionally falls through to the one below it, making
     // it possible to start at the version that's installed and then run through any that haven't
     // been applied yet.
@@ -111,6 +126,8 @@ class SQLiteSchema {
   }
 
   private void createMutationQueue() {
+    logDebugInfo("createMutationQueue");
+
     // A table naming all the mutation queues in the system.
     db.execSQL(
         "CREATE TABLE mutation_queues ("
@@ -137,6 +154,8 @@ class SQLiteSchema {
   }
 
   private void removeAcknowledgedMutations() {
+    logDebugInfo("removeAcknowledgedMutations");
+
     SQLitePersistence.Query mutationQueuesQuery =
         new SQLitePersistence.Query(
             db, "SELECT uid, last_acknowledged_batch_id FROM mutation_queues");
@@ -155,6 +174,8 @@ class SQLiteSchema {
   }
 
   private void removeMutationBatch(String uid, int batchId) {
+    logDebugInfo("removeMutationBatch");
+
     SQLiteStatement mutationDeleter =
         db.compileStatement("DELETE FROM mutations WHERE uid = ? AND batch_id = ?");
     mutationDeleter.bindString(1, uid);
@@ -169,6 +190,8 @@ class SQLiteSchema {
   }
 
   private void createQueryCache() {
+    logDebugInfo("createQueryCache");
+
     // A cache of targets and associated metadata
     db.execSQL(
         "CREATE TABLE targets ("
@@ -202,17 +225,23 @@ class SQLiteSchema {
   }
 
   private void dropQueryCache() {
+    logDebugInfo("dropQueryCache");
+
     db.execSQL("DROP TABLE targets");
     db.execSQL("DROP TABLE target_globals");
     db.execSQL("DROP TABLE target_documents");
   }
 
   private void createRemoteDocumentCache() {
+    logDebugInfo("createRemoteDocumentCache");
+
     // A cache of documents obtained from the server.
     db.execSQL("CREATE TABLE remote_documents (path TEXT PRIMARY KEY, contents BLOB)");
   }
 
   private void createLocalDocumentsCollectionIndex() {
+    logDebugInfo("createLocalDocumentsCollectionIndex");
+
     // A per-user, per-collection index for cached documents indexed by a single field's name and
     // value.
     db.execSQL(
@@ -230,6 +259,8 @@ class SQLiteSchema {
 
   // Note that this runs before we add the target count column, so we don't populate it yet.
   private void ensureTargetGlobal() {
+    logDebugInfo("ensureTargetGlobal");
+
     boolean targetGlobalExists = DatabaseUtils.queryNumEntries(db, "target_globals") == 1;
     if (!targetGlobalExists) {
       db.execSQL(
@@ -241,6 +272,8 @@ class SQLiteSchema {
   }
 
   private void addTargetCount() {
+    logDebugInfo("addTargetCount");
+
     long count = DatabaseUtils.queryNumEntries(db, "targets");
     db.execSQL("ALTER TABLE target_globals ADD COLUMN target_count INTEGER");
     ContentValues cv = new ContentValues();
@@ -249,6 +282,8 @@ class SQLiteSchema {
   }
 
   private void addSequenceNumber() {
+    logDebugInfo("addSequenceNumber");
+
     db.execSQL("ALTER TABLE target_documents ADD COLUMN sequence_number INTEGER");
   }
 
@@ -258,6 +293,8 @@ class SQLiteSchema {
    * recorded sequence number from the target metadata.
    */
   private void ensureSequenceNumbers() {
+    logDebugInfo("ensureSequenceNumbers");
+
     // Get the current highest sequence number
     SQLitePersistence.Query sequenceNumberQuery =
         new SQLitePersistence.Query(

@@ -19,6 +19,7 @@ import static com.google.firebase.firestore.util.Assert.fail;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import android.database.sqlite.SQLiteStatement;
+import android.util.Log;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.Query;
@@ -41,6 +42,12 @@ import javax.annotation.Nullable;
 
 /** A mutation queue for a specific user, backed by SQLite. */
 final class SQLiteMutationQueue implements MutationQueue {
+  public static void logDebugInfo(String method) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLiteMutationQueue." + method, "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+  }
 
   private final SQLitePersistence db;
   private final LocalSerializer serializer;
@@ -82,6 +89,8 @@ final class SQLiteMutationQueue implements MutationQueue {
    * @param user The user for which to create a mutation queue.
    */
   SQLiteMutationQueue(SQLitePersistence persistence, LocalSerializer serializer, User user) {
+    logDebugInfo("SQLiteMutationQueue");
+
     this.db = persistence;
     this.serializer = serializer;
     this.uid = user.isAuthenticated() ? user.getUid() : "";
@@ -92,6 +101,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public void start() {
+    logDebugInfo("start");
+
     loadNextBatchIdAcrossAllUsers();
 
     // On restart, nextBatchId may end up lower than lastAcknowledgedBatchId since it's computed
@@ -126,6 +137,8 @@ final class SQLiteMutationQueue implements MutationQueue {
    * returns 0. Note that batch IDs are global.
    */
   private void loadNextBatchIdAcrossAllUsers() {
+    logDebugInfo("loadNextBatchIdAcrossAllUsers");
+
     // The dependent query below turned out to be ~500x faster than any other technique, given just
     // the primary key index on (uid, batch_id).
     //
@@ -156,11 +169,15 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public boolean isEmpty() {
+    logDebugInfo("isEmpty");
+
     return db.query("SELECT batch_id FROM mutations WHERE uid = ? LIMIT 1").binding(uid).isEmpty();
   }
 
   @Override
   public void acknowledgeBatch(MutationBatch batch, ByteString streamToken) {
+    logDebugInfo("acknowledgeBatch");
+
     int batchId = batch.getBatchId();
     hardAssert(
         batchId > lastAcknowledgedBatchId, "Mutation batchIds must be acknowledged in order");
@@ -172,16 +189,22 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public ByteString getLastStreamToken() {
+    logDebugInfo("getLastStreamToken");
+
     return lastStreamToken;
   }
 
   @Override
   public void setLastStreamToken(ByteString streamToken) {
+    logDebugInfo("setLastStreamToken");
+
     lastStreamToken = checkNotNull(streamToken);
     writeMutationQueueMetadata();
   }
 
   private void writeMutationQueueMetadata() {
+    logDebugInfo("writeMutationQueueMetadata");
+
     db.execute(
         "INSERT OR REPLACE INTO mutation_queues "
             + "(uid, last_acknowledged_batch_id, last_stream_token) "
@@ -193,6 +216,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public MutationBatch addMutationBatch(Timestamp localWriteTime, List<Mutation> mutations) {
+    logDebugInfo("addMutationBatch");
+
     int batchId = nextBatchId;
     nextBatchId += 1;
 
@@ -228,6 +253,8 @@ final class SQLiteMutationQueue implements MutationQueue {
   @Nullable
   @Override
   public MutationBatch lookupMutationBatch(int batchId) {
+    logDebugInfo("lookupMutationBatch");
+
     return db.query("SELECT mutations FROM mutations WHERE uid = ? AND batch_id = ?")
         .binding(uid, batchId)
         .firstValue(row -> decodeMutationBatch(row.getBlob(0)));
@@ -236,6 +263,8 @@ final class SQLiteMutationQueue implements MutationQueue {
   @Nullable
   @Override
   public MutationBatch getNextMutationBatchAfterBatchId(int batchId) {
+    logDebugInfo("getNextMutationBatchAfterBatchId");
+
     // All batches with batchId <= lastAcknowledgedBatchId have been acknowledged so the first
     // unacknowledged batch after batchID will have a batchID larger than both of these values.
     int nextBatchId = Math.max(batchId, lastAcknowledgedBatchId) + 1;
@@ -250,6 +279,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public List<MutationBatch> getAllMutationBatches() {
+    logDebugInfo("getAllMutationBatches");
+
     List<MutationBatch> result = new ArrayList<>();
     db.query("SELECT mutations FROM mutations WHERE uid = ? ORDER BY batch_id ASC")
         .binding(uid)
@@ -259,6 +290,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public List<MutationBatch> getAllMutationBatchesAffectingDocumentKey(DocumentKey documentKey) {
+    logDebugInfo("getAllMutationBatchesAffectingDocumentKey");
+
     String path = EncodedPath.encode(documentKey.getPath());
 
     List<MutationBatch> result = new ArrayList<>();
@@ -277,6 +310,8 @@ final class SQLiteMutationQueue implements MutationQueue {
   @Override
   public List<MutationBatch> getAllMutationBatchesAffectingDocumentKeys(
       Iterable<DocumentKey> documentKeys) {
+    logDebugInfo("getAllMutationBatchesAffectingDocumentKeys");
+
     List<MutationBatch> result = new ArrayList<>();
     if (!documentKeys.iterator().hasNext()) {
       return result;
@@ -341,6 +376,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public List<MutationBatch> getAllMutationBatchesAffectingQuery(Query query) {
+    logDebugInfo("getAllMutationBatchesAffectingQuery");
+
     // Use the query path as a prefix for testing if a document matches the query.
     ResourcePath prefix = query.getPath();
     int immediateChildrenPathLength = prefix.length() + 1;
@@ -401,6 +438,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public void removeMutationBatch(MutationBatch batch) {
+    logDebugInfo("removeMutationBatches");
+
     SQLiteStatement mutationDeleter =
         db.prepare("DELETE FROM mutations WHERE uid = ? AND batch_id = ?");
 
@@ -421,6 +460,8 @@ final class SQLiteMutationQueue implements MutationQueue {
 
   @Override
   public void performConsistencyCheck() {
+    logDebugInfo("performConsistencyCheck");
+
     if (!isEmpty()) {
       return;
     }
@@ -443,6 +484,8 @@ final class SQLiteMutationQueue implements MutationQueue {
   }
 
   private MutationBatch decodeMutationBatch(byte[] bytes) {
+    logDebugInfo("decodeMutationBatch");
+
     try {
       return serializer.decodeMutationBatch(
           com.google.firebase.firestore.proto.WriteBatch.parseFrom(bytes));

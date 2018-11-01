@@ -18,6 +18,7 @@ import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import android.content.Context;
 import android.support.annotation.Nullable;
+import android.util.Log;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
@@ -195,6 +196,11 @@ public final class FirestoreClient implements RemoteStore.RemoteStoreCallback {
   }
 
   private void initialize(Context context, User user, boolean usePersistence) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("FirestoreClient", "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+
     // Note: The initialization work must all be synchronous (we can't dispatch more work) since
     // external write/listen operations could get queued to run before that subsequent work
     // completes.

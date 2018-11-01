@@ -519,6 +519,8 @@ public class FirebaseApp {
    * @hide
    */
   protected FirebaseApp(Context applicationContext, String name, FirebaseOptions options) {
+    Log.i("Firebase", "This is a debug build of the Firebase sdk");
+
     this.applicationContext = Preconditions.checkNotNull(applicationContext);
     this.name = Preconditions.checkNotEmpty(name);
     this.options = Preconditions.checkNotNull(options);

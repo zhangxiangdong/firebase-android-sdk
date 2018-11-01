@@ -19,6 +19,7 @@ import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import android.database.sqlite.SQLiteStatement;
 import android.util.SparseArray;
+import android.util.Log;
 import com.google.firebase.Timestamp;
 import com.google.firebase.database.collection.ImmutableSortedSet;
 import com.google.firebase.firestore.core.Query;
@@ -31,6 +32,12 @@ import javax.annotation.Nullable;
 
 /** Cached Queries backed by SQLite. */
 final class SQLiteQueryCache implements QueryCache {
+  public static void logDebugInfo(String method) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLiteSchema." + method, "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+  }
 
   private final SQLitePersistence db;
   private final LocalSerializer localSerializer;
@@ -41,11 +48,15 @@ final class SQLiteQueryCache implements QueryCache {
   private long targetCount;
 
   SQLiteQueryCache(SQLitePersistence db, LocalSerializer localSerializer) {
+    logDebugInfo("SQLiteQueryCache");
+
     this.db = db;
     this.localSerializer = localSerializer;
   }
 
   void start() {
+    logDebugInfo("start");
+
     // Store exactly one row in the table. If the row exists at all, it's the global metadata.
     int found =
         db.query(
@@ -65,37 +76,51 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public int getHighestTargetId() {
+    logDebugInfo("getHighestTargetId");
+
     return highestTargetId;
   }
 
   @Override
   public long getHighestListenSequenceNumber() {
+    logDebugInfo("getHighestListenSequenceNumber");
+
     return lastListenSequenceNumber;
   }
 
   @Override
   public long getTargetCount() {
+    logDebugInfo("getTargetCount");
+
     return targetCount;
   }
 
   @Override
   public void forEachTarget(Consumer<QueryData> consumer) {
+    logDebugInfo("forEachTarget");
+
     db.query("SELECT target_proto FROM targets")
         .forEach(row -> consumer.accept(decodeQueryData(row.getBlob(0))));
   }
 
   @Override
   public SnapshotVersion getLastRemoteSnapshotVersion() {
+    logDebugInfo("getLastRemoteSnapshotVersion");
+
     return lastRemoteSnapshotVersion;
   }
 
   @Override
   public void setLastRemoteSnapshotVersion(SnapshotVersion snapshotVersion) {
+    logDebugInfo("setLastRemoteSnapshotVersion");
+
     lastRemoteSnapshotVersion = snapshotVersion;
     writeMetadata();
   }
 
   private void saveQueryData(QueryData queryData) {
+    logDebugInfo("saveQueryData");
+
     int targetId = queryData.getTargetId();
     String canonicalId = queryData.getQuery().getCanonicalId();
     Timestamp version = queryData.getSnapshotVersion().getTimestamp();
@@ -122,6 +147,8 @@ final class SQLiteQueryCache implements QueryCache {
   }
 
   private boolean updateMetadata(QueryData queryData) {
+    logDebugInfo("updateMetadata");
+
     boolean wasUpdated = false;
 
     if (queryData.getTargetId() > highestTargetId) {
@@ -139,6 +166,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public void addQueryData(QueryData queryData) {
+    logDebugInfo("addQueryData");
+
     saveQueryData(queryData);
     // PORTING NOTE: The query_targets index is maintained by SQLite.
 
@@ -149,6 +178,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public void updateQueryData(QueryData queryData) {
+    logDebugInfo("updateQueryData");
+
     saveQueryData(queryData);
 
     if (updateMetadata(queryData)) {
@@ -157,6 +188,8 @@ final class SQLiteQueryCache implements QueryCache {
   }
 
   private void writeMetadata() {
+    logDebugInfo("writeMetadata");
+
     db.execute(
         "UPDATE target_globals SET highest_target_id = ?, highest_listen_sequence_number = ?, "
             + "last_remote_snapshot_version_seconds = ?, last_remote_snapshot_version_nanos = ?, "
@@ -169,6 +202,8 @@ final class SQLiteQueryCache implements QueryCache {
   }
 
   private void removeTarget(int targetId) {
+    logDebugInfo("removeTarget");
+
     removeMatchingKeysForTargetId(targetId);
     db.execute("DELETE FROM targets WHERE target_id = ?", targetId);
     targetCount--;
@@ -176,6 +211,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public void removeQueryData(QueryData queryData) {
+    logDebugInfo("removeQueryData");
+
     int targetId = queryData.getTargetId();
     removeTarget(targetId);
     writeMetadata();
@@ -187,6 +224,8 @@ final class SQLiteQueryCache implements QueryCache {
    * Returns the number of targets removed.
    */
   int removeQueries(long upperBound, SparseArray<?> activeTargetIds) {
+    logDebugInfo("removeQueries");
+
     int[] count = new int[1];
     // SQLite has a max sql statement size, so there is technically a possibility that including a
     // an IN clause in this query to filter `activeTargetIds` could overflow. Rather than deal with
@@ -208,6 +247,8 @@ final class SQLiteQueryCache implements QueryCache {
   @Nullable
   @Override
   public QueryData getQueryData(Query query) {
+    logDebugInfo("getQueryData");
+
     // Querying the targets table by canonical_id may yield more than one result because
     // canonical_id values are not required to be unique per target. This query depends on the
     // query_targets index to be efficient.
@@ -234,6 +275,8 @@ final class SQLiteQueryCache implements QueryCache {
   }
 
   private QueryData decodeQueryData(byte[] bytes) {
+    logDebugInfo("decodeQueryData");
+
     try {
       return localSerializer.decodeQueryData(Target.parseFrom(bytes));
     } catch (InvalidProtocolBufferException e) {
@@ -245,6 +288,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public void addMatchingKeys(ImmutableSortedSet<DocumentKey> keys, int targetId) {
+    logDebugInfo("addMatchingKeys");
+
     // PORTING NOTE: The reverse index (document_targets) is maintained by SQLite.
 
     // When updates come in we treat those as added keys, which means these inserts won't
@@ -265,6 +310,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public void removeMatchingKeys(ImmutableSortedSet<DocumentKey> keys, int targetId) {
+    logDebugInfo("removeMatchingKeys");
+
     // PORTING NOTE: The reverse index (document_targets) is maintained by SQLite.
     SQLiteStatement deleter =
         db.prepare("DELETE FROM target_documents WHERE target_id = ? AND path = ?");
@@ -278,11 +325,15 @@ final class SQLiteQueryCache implements QueryCache {
   }
 
   private void removeMatchingKeysForTargetId(int targetId) {
+    logDebugInfo("removeMatchingKeysForTargetId");
+
     db.execute("DELETE FROM target_documents WHERE target_id = ?", targetId);
   }
 
   @Override
   public ImmutableSortedSet<DocumentKey> getMatchingKeysForTargetId(int targetId) {
+    logDebugInfo("getMatchingKeysForTargetId");
+
     final DocumentKeysHolder holder = new DocumentKeysHolder();
     db.query("SELECT path FROM target_documents WHERE target_id = ?")
         .binding(targetId)
@@ -302,6 +353,8 @@ final class SQLiteQueryCache implements QueryCache {
 
   @Override
   public boolean containsKey(DocumentKey key) {
+    logDebugInfo("containsKey");
+
     String path = EncodedPath.encode(key.getPath());
     return !db.query(
             "SELECT target_id FROM target_documents WHERE path = ? AND target_id != 0 LIMIT 1")

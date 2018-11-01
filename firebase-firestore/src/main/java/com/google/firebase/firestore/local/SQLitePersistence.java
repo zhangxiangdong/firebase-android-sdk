@@ -27,6 +27,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteProgram;
 import android.database.sqlite.SQLiteStatement;
 import android.support.annotation.VisibleForTesting;
+import android.util.Log;
 import com.google.common.base.Function;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.model.DatabaseId;
@@ -44,6 +45,12 @@ import javax.annotation.Nullable;
  * helper routines that make dealing with SQLite much more pleasant.
  */
 public final class SQLitePersistence extends Persistence {
+  public static void logDebugInfo(String method) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLitePersistence." + method, "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+  }
 
   /**
    * Creates the database name that is used to identify the database to be used with a Firestore
@@ -78,6 +85,8 @@ public final class SQLitePersistence extends Persistence {
 
   public SQLitePersistence(
       Context context, String persistenceKey, DatabaseId databaseId, LocalSerializer serializer) {
+    logDebugInfo("SQLitePersistence");
+
     String databaseName = databaseName(persistenceKey, databaseId);
     this.opener = new OpenHelper(context, databaseName);
     this.serializer = serializer;
@@ -88,6 +97,8 @@ public final class SQLitePersistence extends Persistence {
 
   @Override
   public void start() {
+    logDebugInfo("start");
+
     hardAssert(!started, "SQLitePersistence double-started!");
     started = true;
     try {
@@ -110,6 +121,8 @@ public final class SQLitePersistence extends Persistence {
 
   @Override
   public void shutdown() {
+    logDebugInfo("shutdown");
+
     hardAssert(started, "SQLitePersistence shutdown without start!");
     started = false;
     db.close();
@@ -118,31 +131,43 @@ public final class SQLitePersistence extends Persistence {
 
   @Override
   public boolean isStarted() {
+    logDebugInfo("isStarted");
+
     return started;
   }
 
   @Override
   public ReferenceDelegate getReferenceDelegate() {
+    logDebugInfo("getReferenceDelegate");
+
     return referenceDelegate;
   }
 
   @Override
   MutationQueue getMutationQueue(User user) {
+    logDebugInfo("getMutationQueue");
+
     return new SQLiteMutationQueue(this, serializer, user);
   }
 
   @Override
   SQLiteQueryCache getQueryCache() {
+    logDebugInfo("getQueryCache");
+
     return queryCache;
   }
 
   @Override
   RemoteDocumentCache getRemoteDocumentCache() {
+    logDebugInfo("getRemoteDocumentCache");
+
     return remoteDocumentCache;
   }
 
   @Override
   void runTransaction(String action, Runnable operation) {
+    logDebugInfo("runTransaction");
+
     try {
       Logger.debug(TAG, "Starting transaction: %s", action);
       referenceDelegate.onTransactionStarted();
@@ -159,6 +184,8 @@ public final class SQLitePersistence extends Persistence {
 
   @Override
   <T> T runTransaction(String action, Supplier<T> operation) {
+    logDebugInfo("runTransaction");
+
     try {
       Logger.debug(TAG, "Starting transaction: %s", action);
       referenceDelegate.onTransactionStarted();
@@ -198,10 +225,14 @@ public final class SQLitePersistence extends Persistence {
 
     OpenHelper(Context context, String databaseName) {
       super(context, databaseName, null, SQLiteSchema.VERSION);
+
+      logDebugInfo("OpenHelper");
     }
 
     @Override
     public void onConfigure(SQLiteDatabase db) {
+      logDebugInfo("onConfigure");
+
       // Note that this is only called automatically by the SQLiteOpenHelper base class on Jelly
       // Bean and above.
       configured = true;
@@ -215,6 +246,8 @@ public final class SQLitePersistence extends Persistence {
      * Bean device.
      */
     private void ensureConfigured(SQLiteDatabase db) {
+      logDebugInfo("ensureConfigured");
+
       if (!configured) {
         onConfigure(db);
       }
@@ -222,18 +255,24 @@ public final class SQLitePersistence extends Persistence {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
+      logDebugInfo("onCreate");
+
       ensureConfigured(db);
       new SQLiteSchema(db).runMigrations(0);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+      logDebugInfo("onUpgrade");
+
       ensureConfigured(db);
       new SQLiteSchema(db).runMigrations(oldVersion);
     }
 
     @Override
     public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+      logDebugInfo("onDowngrade");
+
       ensureConfigured(db);
 
       // For now, we can safely do nothing.
@@ -251,6 +290,8 @@ public final class SQLitePersistence extends Persistence {
 
     @Override
     public void onOpen(SQLiteDatabase db) {
+      logDebugInfo("onOpen");
+
       ensureConfigured(db);
     }
   }
@@ -260,6 +301,8 @@ public final class SQLitePersistence extends Persistence {
    * </code>.
    */
   void execute(String sql, Object... args) {
+    logDebugInfo("execute");
+
     // Note that unlike db.query and friends, execSQL already takes Object[] bindArgs so there's no
     // need to go through the bind dance below.
     db.execSQL(sql, args);
@@ -267,6 +310,8 @@ public final class SQLitePersistence extends Persistence {
 
   /** Prepare the given non-query SQL statement. */
   SQLiteStatement prepare(String sql) {
+    logDebugInfo("prepare");
+
     return db.compileStatement(sql);
   }
 
@@ -276,6 +321,8 @@ public final class SQLitePersistence extends Persistence {
    * @return The number of rows affected.
    */
   int execute(SQLiteStatement statement, Object... args) {
+    logDebugInfo("execute");
+
     statement.clearBindings();
     bind(statement, args);
     return statement.executeUpdateDelete();
@@ -286,6 +333,8 @@ public final class SQLitePersistence extends Persistence {
    * chaining further methods off the query.
    */
   Query query(String sql) {
+    logDebugInfo("query");
+
     return new Query(db, sql);
   }
 
@@ -332,6 +381,8 @@ public final class SQLitePersistence extends Persistence {
     private CursorFactory cursorFactory;
 
     Query(SQLiteDatabase db, String sql) {
+      logDebugInfo("Query");
+
       this.db = db;
       this.sql = sql;
     }
@@ -346,6 +397,8 @@ public final class SQLitePersistence extends Persistence {
      * @return this Query object, for chaining.
      */
     Query binding(Object... args) {
+      logDebugInfo("binding");
+
       // This is gross, but the best way to preserve both the readability of the caller (since
       // values don't have be arbitrarily converted to Strings) and allows BLOBs to be used as
       // bind arguments.
@@ -373,6 +426,8 @@ public final class SQLitePersistence extends Persistence {
      * @param consumer A consumer that will receive the first row.
      */
     void forEach(Consumer<Cursor> consumer) {
+      logDebugInfo("forEach");
+
       Cursor cursor = null;
       try {
         cursor = startQuery();
@@ -393,6 +448,8 @@ public final class SQLitePersistence extends Persistence {
      * @return The number of rows processed (either zero or one).
      */
     int first(Consumer<Cursor> consumer) {
+      logDebugInfo("first");
+
       Cursor cursor = null;
       try {
         cursor = startQuery();
@@ -418,6 +475,8 @@ public final class SQLitePersistence extends Persistence {
      */
     @Nullable
     <T> T firstValue(Function<Cursor, T> function) {
+      logDebugInfo("firstValue");
+
       Cursor cursor = null;
       try {
         cursor = startQuery();
@@ -434,6 +493,8 @@ public final class SQLitePersistence extends Persistence {
 
     /** Runs the query and returns true if the result was nonempty. */
     boolean isEmpty() {
+      logDebugInfo("isEmpty");
+
       Cursor cursor = null;
       try {
         cursor = startQuery();
@@ -447,6 +508,8 @@ public final class SQLitePersistence extends Persistence {
 
     /** Starts the query against the database, supplying binding arguments if they exist. */
     private Cursor startQuery() {
+      logDebugInfo("startQuery");
+
       if (cursorFactory != null) {
         return db.rawQueryWithFactory(cursorFactory, sql, null, null);
       } else {
@@ -467,6 +530,8 @@ public final class SQLitePersistence extends Persistence {
    * appropriate bind method on the program.
    */
   private static void bind(SQLiteProgram program, Object[] bindArgs) {
+    logDebugInfo("bind");
+
     for (int i = 0; i < bindArgs.length; i++) {
       Object arg = bindArgs[i];
       if (arg == null) {

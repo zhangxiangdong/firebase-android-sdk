@@ -16,6 +16,7 @@ package com.google.firebase.firestore.local;
 
 import static com.google.firebase.firestore.util.Assert.fail;
 
+import android.util.Log;
 import com.google.firebase.database.collection.ImmutableSortedMap;
 import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.model.Document;
@@ -29,17 +30,27 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
+  public static void logDebugInfo(String method) {
+    int pid = android.os.Process.myPid();
+    int tid = android.os.Process.myTid();
+    int uid = android.os.Process.myUid();
+    Log.i("SQLiteSchema." + method, "DEBUG: (pid)" + pid + ":(tid)" + tid + ":(uid)" + uid);
+  }
 
   private final SQLitePersistence db;
   private final LocalSerializer serializer;
 
   SQLiteRemoteDocumentCache(SQLitePersistence persistence, LocalSerializer serializer) {
+    logDebugInfo("SQLiteRemoteDocumentCache");
+
     this.db = persistence;
     this.serializer = serializer;
   }
 
   @Override
   public void add(MaybeDocument maybeDocument) {
+    logDebugInfo("add");
+
     String path = pathForKey(maybeDocument.getKey());
     MessageLite message = serializer.encodeMaybeDocument(maybeDocument);
 
@@ -51,6 +62,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
 
   @Override
   public void remove(DocumentKey documentKey) {
+    logDebugInfo("remove");
+
     String path = pathForKey(documentKey);
 
     db.execute("DELETE FROM remote_documents WHERE path = ?", path);
@@ -59,6 +72,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
   @Nullable
   @Override
   public MaybeDocument get(DocumentKey documentKey) {
+    logDebugInfo("get");
+
     String path = pathForKey(documentKey);
 
     return db.query("SELECT contents FROM remote_documents WHERE path = ?")
@@ -68,6 +83,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
 
   @Override
   public ImmutableSortedMap<DocumentKey, Document> getAllDocumentsMatchingQuery(Query query) {
+    logDebugInfo("getAllDocumentsMatchingQuery");
+
     // Use the query path as a prefix for testing if a document matches the query.
     ResourcePath prefix = query.getPath();
     int immediateChildrenPathLength = prefix.length() + 1;
@@ -110,10 +127,14 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
   }
 
   private String pathForKey(DocumentKey key) {
+    logDebugInfo("pathForKey");
+
     return EncodedPath.encode(key.getPath());
   }
 
   private MaybeDocument decodeMaybeDocument(byte[] bytes) {
+    logDebugInfo("decodeMaybeDocument");
+
     try {
       return serializer.decodeMaybeDocument(
           com.google.firebase.firestore.proto.MaybeDocument.parseFrom(bytes));
