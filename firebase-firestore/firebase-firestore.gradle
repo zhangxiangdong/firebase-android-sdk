@@ -65,6 +65,7 @@ android {
         versionName version
         multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments emulator: "false"
     }
 
     sourceSets {
@@ -92,6 +93,17 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     testOptions.unitTests.includeAndroidResources = true
+
+
+    buildTypes {
+        debug {
+            if (findProperty("emulator")) {
+                buildConfigField("boolean", "USE_EMULATOR_FOR_TESTS", "true")
+            } else {
+                buildConfigField("boolean", "USE_EMULATOR_FOR_TESTS", "false")
+            }
+        }
+    }
 }
 
 dependencies {
