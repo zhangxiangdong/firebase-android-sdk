@@ -22,6 +22,10 @@ firebaseLibrary {
     publishSources = true
 }
 
+ext {
+    useEmulatorForTests = false
+}
+
 protobuf {
     // Configure the protoc executable
     protoc {
@@ -94,16 +98,25 @@ android {
     }
     testOptions.unitTests.includeAndroidResources = true
 
-
-    buildTypes {
-        debug {
-            if (findProperty("emulator")) {
-                buildConfigField("boolean", "USE_EMULATOR_FOR_TESTS", "true")
-            } else {
-                buildConfigField("boolean", "USE_EMULATOR_FOR_TESTS", "false")
-            }
-        }
+    flavorDimensions "test"
+    productFlavors {
+//        emulator {
+//            dimension "test"
+//            ext {
+//                useEmulatorForTests = true
+//            }
+//        }
+//        prod {
+//            dimension "test"
+//            ext {
+//                useEmulatorForTests = false
+//            }
+//        }
     }
+}
+
+android.libraryVariants.all { variant ->
+    variant.buildConfigField("boolean", "USE_EMULATOR_FOR_TESTS", "project.ext.useEmulatorForTests");
 }
 
 dependencies {
