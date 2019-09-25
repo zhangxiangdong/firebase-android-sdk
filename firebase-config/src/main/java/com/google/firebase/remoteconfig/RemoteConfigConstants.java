@@ -14,6 +14,9 @@
 
 package com.google.firebase.remoteconfig;
 
+import static com.google.firebase.remoteconfig.RemoteConfigConstants.ActiveRolloutsFieldKey.FEATURE_ENABLED;
+import static com.google.firebase.remoteconfig.RemoteConfigConstants.ActiveRolloutsFieldKey.FEATURE_KEY;
+import static com.google.firebase.remoteconfig.RemoteConfigConstants.ActiveRolloutsFieldKey.ROLLOUT;
 import static com.google.firebase.remoteconfig.RemoteConfigConstants.ExperimentDescriptionFieldKey.EXPERIMENT_ID;
 import static com.google.firebase.remoteconfig.RemoteConfigConstants.ExperimentDescriptionFieldKey.VARIANT_ID;
 import static com.google.firebase.remoteconfig.RemoteConfigConstants.RequestFieldKey.ANALYTICS_USER_PROPERTIES;
@@ -81,8 +84,10 @@ public class RemoteConfigConstants {
   @StringDef({ENTRIES, EXPERIMENT_DESCRIPTIONS, STATE})
   @Retention(RetentionPolicy.SOURCE)
   public @interface ResponseFieldKey {
+    String ACTIVE_ROLLOUTS = "activeRollouts";
     String ENTRIES = "entries";
     String EXPERIMENT_DESCRIPTIONS = "experimentDescriptions";
+    String ENABLED_FEATURE_KEYS = "enabledFeatureKeys";
     String STATE = "state";
   }
 
@@ -95,6 +100,17 @@ public class RemoteConfigConstants {
   public @interface ExperimentDescriptionFieldKey {
     String EXPERIMENT_ID = "experimentId";
     String VARIANT_ID = "variantId";
+  }
+
+  /**
+   * Select keys of fields in the active rollouts returned from the Firebase Remote Config server.
+   */
+  @StringDef({ROLLOUT, FEATURE_KEY, FEATURE_ENABLED})
+  @Retention(RetentionPolicy.SOURCE)
+  public @interface ActiveRolloutsFieldKey {
+    String ROLLOUT = "rollout";
+    String FEATURE_KEY = "feaureKey";
+    String FEATURE_ENABLED = "featureEnabled";
   }
 
   private RemoteConfigConstants() {}

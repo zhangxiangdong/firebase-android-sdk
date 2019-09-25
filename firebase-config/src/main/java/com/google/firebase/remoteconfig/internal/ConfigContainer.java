@@ -15,6 +15,7 @@
 package com.google.firebase.remoteconfig.internal;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -30,6 +31,8 @@ public class ConfigContainer {
   private static final String CONFIGS_KEY = "configs_key";
   private static final String FETCH_TIME_KEY = "fetch_time_key";
   private static final String ABT_EXPERIMENTS_KEY = "abt_experiments_key";
+  private static final String ACTIVE_ROLLOUTS_KEY = "active_rollouts_key";
+  private static final String ENABLED_FEATURE_KEYS_KEY = "enabled_feature_keys_key";
 
   private static final Date DEFAULTS_FETCH_TIME = new Date(0L);
 
@@ -51,22 +54,33 @@ public class ConfigContainer {
   private Date fetchTime;
 
   private JSONArray abtExperiments;
+  private JSONArray activeRollouts;
+  private JSONArray enabledFeatureKeys;
 
   /**
    * Creates a new container with the specified configs and fetch time.
    *
    * <p>The {@code configsJson} must not be modified.
    */
-  private ConfigContainer(JSONObject configsJson, Date fetchTime, JSONArray abtExperiments)
+  private ConfigContainer(
+      JSONObject configsJson,
+      Date fetchTime,
+      JSONArray abtExperiments,
+      JSONArray activeRollouts,
+      JSONArray enabledFeatureKeys)
       throws JSONException {
     JSONObject containerJson = new JSONObject();
     containerJson.put(CONFIGS_KEY, configsJson);
     containerJson.put(FETCH_TIME_KEY, fetchTime.getTime());
     containerJson.put(ABT_EXPERIMENTS_KEY, abtExperiments);
+    containerJson.put(ACTIVE_ROLLOUTS_KEY, activeRollouts);
+    containerJson.put(ENABLED_FEATURE_KEYS_KEY, enabledFeatureKeys);
 
     this.configsJson = configsJson;
     this.fetchTime = fetchTime;
     this.abtExperiments = abtExperiments;
+    this.activeRollouts = activeRollouts;
+    this.enabledFeatureKeys = enabledFeatureKeys;
 
     this.containerJson = containerJson;
   }
@@ -80,7 +94,9 @@ public class ConfigContainer {
     return new ConfigContainer(
         containerJson.getJSONObject(CONFIGS_KEY),
         new Date(containerJson.getLong(FETCH_TIME_KEY)),
-        containerJson.getJSONArray(ABT_EXPERIMENTS_KEY));
+        containerJson.getJSONArray(ABT_EXPERIMENTS_KEY),
+        containerJson.getJSONArray(ACTIVE_ROLLOUTS_KEY),
+        containerJson.getJSONArray(ENABLED_FEATURE_KEYS_KEY));
   }
 
   /**
@@ -102,6 +118,16 @@ public class ConfigContainer {
 
   public JSONArray getAbtExperiments() {
     return abtExperiments;
+  }
+
+  /** Returns all rollouts that target this device. */
+  public JSONArray getActiveRollouts() {
+    return activeRollouts;
+  }
+
+  /** Returns the keys of all enabled features on this device. */
+  public JSONArray getEnabledFeatureKeys() {
+    return enabledFeatureKeys;
   }
 
   @Override
@@ -131,18 +157,23 @@ public class ConfigContainer {
   public static class Builder {
     private JSONObject builderConfigsJson;
     private Date builderFetchTime;
-    private JSONArray builderAbtExperiments;
+    /**
+     * A collection of {@link JSONArray} objects that will be used to set {@link JSONArray}
+     * parameters of a {@link ConfigContainer}.
+     */
+    private Map<String, JSONArray> jsonArrayBuilders = new HashMap<>();
 
     private Builder() {
       builderConfigsJson = new JSONObject();
       builderFetchTime = DEFAULTS_FETCH_TIME;
-      builderAbtExperiments = new JSONArray();
     }
 
     public Builder(ConfigContainer otherContainer) {
       this.builderConfigsJson = otherContainer.getConfigs();
       this.builderFetchTime = otherContainer.getFetchTime();
-      this.builderAbtExperiments = otherContainer.getAbtExperiments();
+      jsonArrayBuilders.put(ABT_EXPERIMENTS_KEY, otherContainer.getAbtExperiments());
+      jsonArrayBuilders.put(ACTIVE_ROLLOUTS_KEY, otherContainer.getActiveRollouts());
+      jsonArrayBuilders.put(ENABLED_FEATURE_KEYS_KEY, otherContainer.getEnabledFeatureKeys());
     }
 
     public Builder replaceConfigsWith(Map<String, String> configsMap) {
@@ -168,8 +199,21 @@ public class ConfigContainer {
     }
 
     public Builder withAbtExperiments(JSONArray abtExperiments) {
+      return with(ABT_EXPERIMENTS_KEY, abtExperiments);
+    }
+
+    public Builder withActiveRollouts(JSONArray activeRollouts) {
+      return with(ACTIVE_ROLLOUTS_KEY, activeRollouts);
+    }
+
+    public Builder withEnabledFeatureKeys(JSONArray enabledFeatureKeys) {
+      return with(ENABLED_FEATURE_KEYS_KEY, enabledFeatureKeys);
+    }
+
+    /** Adds a {@param key}, {@link JSONArray} pair to {@link Builder#jsonArrayBuilders}. */
+    private Builder with(String key, JSONArray jsonArray) {
       try {
-        this.builderAbtExperiments = new JSONArray(abtExperiments.toString());
+        jsonArrayBuilders.put(key, new JSONArray(jsonArray.toString()));
       } catch (JSONException e) {
         // We serialize and deserialize the JSONArray to guarantee that it cannot be mutated after
         // being set in the builder.
@@ -181,7 +225,16 @@ public class ConfigContainer {
 
     /** If a fetch time is not provided, the defaults container fetch time is used. */
     public ConfigContainer build() throws JSONException {
-      return new ConfigContainer(builderConfigsJson, builderFetchTime, builderAbtExperiments);
+      return new ConfigContainer(
+          builderConfigsJson,
+          builderFetchTime,
+          getOrDefaultToEmptyJSONArray(ABT_EXPERIMENTS_KEY),
+          getOrDefaultToEmptyJSONArray(ACTIVE_ROLLOUTS_KEY),
+          getOrDefaultToEmptyJSONArray(ENABLED_FEATURE_KEYS_KEY));
+    }
+
+    private JSONArray getOrDefaultToEmptyJSONArray(String key) {
+      return jsonArrayBuilders.containsKey(key) ? jsonArrayBuilders.get(key) : new JSONArray();
     }
   }
 

@@ -90,6 +90,9 @@ public class RemoteConfigComponentTest {
     when(mockFirebaseApp.getOptions())
         .thenReturn(new FirebaseOptions.Builder().setApplicationId(APP_ID).build());
     when(mockFirebaseApp.getName()).thenReturn(FirebaseApp.DEFAULT_APP_NAME);
+
+    // Catch to avoid NPEs (the getters should never return null).
+    when(mockActivatedCache.get()).thenReturn(Tasks.forResult(null));
   }
 
   @Test
@@ -203,6 +206,7 @@ public class RemoteConfigComponentTest {
         mockFirebaseApp,
         namespace,
         mockFirebaseAbt,
+        mockAnalyticsConnector,
         directExecutor,
         mockFetchedCache,
         mockActivatedCache,
