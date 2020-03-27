@@ -46,6 +46,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -259,25 +260,35 @@ final class CctTransportBackend implements TransportBackend {
     connection.setRequestProperty(CONTENT_ENCODING_HEADER_KEY, GZIP_CONTENT_ENCODING);
     connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, JSON_CONTENT_TYPE);
     connection.setRequestProperty(ACCEPT_ENCODING_HEADER_KEY, GZIP_CONTENT_ENCODING);
-
+    Logging.d(LOG_TAG, "Request configured request to: %s", request.url);
     if (request.apiKey != null) {
       connection.setRequestProperty(API_KEY_HEADER_KEY, request.apiKey);
     }
-
-    WritableByteChannel channel = Channels.newChannel(connection.getOutputStream());
+    Logging.d(LOG_TAG, "next: OutputStream stream = connection.getOutputStream()");
+    OutputStream stream = connection.getOutputStream();
+    Logging.d(LOG_TAG, "next: Channels.newChannel(stream)");
+    WritableByteChannel channel = Channels.newChannel(stream);
     try {
       ByteArrayOutputStream output = new ByteArrayOutputStream();
+      Logging.d(LOG_TAG, "next: new GZIPOutputStream(output)");
       GZIPOutputStream gzipOutputStream = new GZIPOutputStream(output);
 
       try {
+        Logging.d(LOG_TAG, "next: dataEncoder.encode(request.requestBody, new OutputStreamWriter(gzipOutputStream))");
         dataEncoder.encode(request.requestBody, new OutputStreamWriter(gzipOutputStream));
+        Logging.d(LOG_TAG, "finished: dataEncoder.encode(request.requestBody, new OutputStreamWriter(gzipOutputStream))");
       } catch (EncodingException | IOException e) {
         Logging.e(LOG_TAG, "Couldn't encode request, returning with 400", e);
         return new HttpResponse(400, null, 0);
       } finally {
         gzipOutputStream.close();
       }
-      channel.write(ByteBuffer.wrap(output.toByteArray()));
+      Logging.d(LOG_TAG, "next: byte[] array = output.toByteArray()");
+      byte[] array = output.toByteArray();
+      Logging.d(LOG_TAG, "next: ByteBuffer.wrap(array)");
+      ByteBuffer buffer = ByteBuffer.wrap(array);
+      Logging.d(LOG_TAG, "next: channel.write(buffer);");
+      channel.write(buffer);
       int responseCode = connection.getResponseCode();
       Logging.i(LOG_TAG, "Status Code: " + responseCode);
       Logging.i(LOG_TAG, "Content-Type: " + connection.getHeaderField("Content-Type"));
