@@ -269,6 +269,7 @@ final class CctTransportBackend implements TransportBackend {
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       GZIPOutputStream gzipOutputStream = new GZIPOutputStream(output);
 
+
       try {
         dataEncoder.encode(request.requestBody, new OutputStreamWriter(gzipOutputStream));
       } catch (EncodingException | IOException e) {
@@ -277,7 +278,10 @@ final class CctTransportBackend implements TransportBackend {
       } finally {
         gzipOutputStream.close();
       }
-      channel.write(ByteBuffer.wrap(output.toByteArray()));
+
+      byte[] byteArray = output.toByteArray();
+      Logging.d(LOG_TAG, "Size of payload:" + byteArray.length);
+      channel.write(ByteBuffer.wrap(byteArray));
       int responseCode = connection.getResponseCode();
       Logging.i(LOG_TAG, "Status Code: " + responseCode);
       Logging.i(LOG_TAG, "Content-Type: " + connection.getHeaderField("Content-Type"));

@@ -15,6 +15,8 @@
 package com.google.firebase.crashlytics.internal.send;
 
 import android.content.Context;
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import com.google.android.datatransport.Encoding;
 import com.google.android.datatransport.Event;
@@ -23,6 +25,7 @@ import com.google.android.datatransport.cct.CCTDestination;
 import com.google.android.datatransport.runtime.TransportRuntime;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
+import com.google.firebase.crashlytics.internal.Logger;
 import com.google.firebase.crashlytics.internal.common.CrashlyticsReportWithSessionId;
 import com.google.firebase.crashlytics.internal.model.CrashlyticsReport;
 import com.google.firebase.crashlytics.internal.model.serialization.CrashlyticsReportJsonTransform;
@@ -47,13 +50,17 @@ public class DataTransportCrashlyticsReportSender {
   public static DataTransportCrashlyticsReportSender create(Context context) {
     TransportRuntime.initialize(context);
     final Transport<CrashlyticsReport> transport =
-        TransportRuntime.getInstance()
-            .newFactory(new CCTDestination(CRASHLYTICS_ENDPOINT, CRASHLYTICS_API_KEY))
-            .getTransport(
-                CRASHLYTICS_TRANSPORT_NAME,
-                CrashlyticsReport.class,
-                Encoding.of("json"),
-                r -> TRANSFORM.reportToJson(r).getBytes(Charset.forName("UTF-8")));
+            TransportRuntime.getInstance()
+                    .newFactory(new CCTDestination(CRASHLYTICS_ENDPOINT, CRASHLYTICS_API_KEY))
+                    .getTransport(
+                            CRASHLYTICS_TRANSPORT_NAME,
+                            CrashlyticsReport.class,
+                            Encoding.of("json"),
+                            r -> {
+                              byte[] utfBytes = TRANSFORM.reportToJson(r).getBytes(Charset.forName("UTF-8"));
+                              Logger.getLogger().d("BYTES ARE " + utfBytes.length / 1024.0 + "KB");
+                              return utfBytes;
+                            });
     return new DataTransportCrashlyticsReportSender(transport);
   }
 
