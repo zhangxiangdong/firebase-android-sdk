@@ -596,17 +596,43 @@ public class FirebaseInAppMessagingFlowableTest {
   }
 
   @Test
-  public void whenImpressedButReceivedFromBackend_doesNotFilterCampaign()
+  public void whenImpressed_filtersCampaign()
       throws ExecutionException, InterruptedException, TimeoutException {
+    CampaignMetadata otherMetadata =
+        new CampaignMetadata("otherCampaignId", "otherName", IS_NOT_TEST_MESSAGE);
+    BannerMessage otherMessage = createBannerMessageCustomMetadata(otherMetadata);
+    VanillaCampaignPayload otherCampaign =
+        VanillaCampaignPayload.newBuilder(vanillaCampaign.build())
+            .setCampaignId(otherMetadata.getCampaignId())
+            .setCampaignName(otherMetadata.getCampaignName())
+            .build();
+    ThickContent otherContent =
+        ThickContent.newBuilder(thickContent)
+            .setContent(BANNER_MESSAGE_PROTO)
+            .setIsTestCampaign(IS_NOT_TEST_MESSAGE)
+            .clearVanillaPayload()
+            .clearTriggeringConditions()
+            .addTriggeringConditions(
+                TriggeringCondition.newBuilder().setEvent(Event.newBuilder().setName("event2")))
+            .setVanillaPayload(otherCampaign)
+            .build();
+    FetchEligibleCampaignsResponse response =
+        FetchEligibleCampaignsResponse.newBuilder(eligibleCampaigns)
+            .addMessages(otherContent)
+            .build();
+    GoodFiamService impl = new GoodFiamService(response);
+    grpcServerRule.getServiceRegistry().addService(impl);
+
     Task<Void> logImpressionTask =
         displayCallbacksFactory
             .generateDisplayCallback(MODAL_MESSAGE_MODEL, ANALYTICS_EVENT_NAME)
             .impressionDetected();
     Tasks.await(logImpressionTask, 1000, TimeUnit.MILLISECONDS);
     analyticsConnector.invokeListenerOnEvent(ANALYTICS_EVENT_NAME);
+    analyticsConnector.invokeListenerOnEvent("event2");
     waitUntilNotified(subscriber);
 
-    assertSubsriberExactly(MODAL_MESSAGE_MODEL, subscriber);
+    assertSubsriberExactly(otherMessage, subscriber);
   }
 
   // There is not a purely functional way to determine if our clients inject the impressed
@@ -816,7 +842,6 @@ public class FirebaseInAppMessagingFlowableTest {
   }
 
   @Test
-  @Ignore("Broken due to Impression Store changes. Needs fixing.")
   public void whenlogImpressionFails_doesNotFilterCampaign()
       throws ExecutionException, InterruptedException, TimeoutException, FileNotFoundException {
     doThrow(new NullPointerException("e1")).when(application).openFileInput(IMPRESSIONS_STORE_FILE);
@@ -943,7 +968,6 @@ public class FirebaseInAppMessagingFlowableTest {
   }
 
   @Test
-  @Ignore("Broken due to Impression Store changes. Needs fixing.")
   public void onImpressionLog_cachesImpressionsInMemory()
       throws ExecutionException, InterruptedException, TimeoutException, FileNotFoundException {
     CampaignMetadata otherMetadata =
@@ -999,7 +1023,6 @@ public class FirebaseInAppMessagingFlowableTest {
   }
 
   @Test
-  @Ignore("Broken due to Impression Store changes. Needs fixing.")
   public void onImpressionStoreReadFailure_doesNotFilter()
       throws ExecutionException, InterruptedException, TimeoutException, IOException {
     doThrow(new NullPointerException("e1")).when(application).openFileInput(IMPRESSIONS_STORE_FILE);
@@ -1015,7 +1038,6 @@ public class FirebaseInAppMessagingFlowableTest {
   // We work around this by failing hard on the fake service if we do not find an empty impression
   // list
   @Test
-  @Ignore("Broken due to Impression Store changes. Needs fixing.")
   public void whenImpressionStorageClientFails_injectsEmptyImpressionListUpstream()
       throws ExecutionException, InterruptedException, TimeoutException, FileNotFoundException {
     VanillaCampaignPayload otherCampaign =
