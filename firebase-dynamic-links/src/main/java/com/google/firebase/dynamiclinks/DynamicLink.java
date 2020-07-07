@@ -53,27 +53,27 @@ public final class DynamicLink {
     /** @hide */
     @VisibleForTesting public static final String KEY_DOMAIN = "domain";
     /** @hide */
-    // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+    // TODO This @VisibleForTesting annotation was being ignored by prod code.
     // Please check that removing it is correct, and remove this comment along with it.
     // @VisibleForTesting
     public static final String KEY_DOMAIN_URI_PREFIX = "domainUriPrefix";
     /** @hide */
-    // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+    // TODO This @VisibleForTesting annotation was being ignored by prod code.
     // Please check that removing it is correct, and remove this comment along with it.
     // @VisibleForTesting
     public static final String KEY_DYNAMIC_LINK = "dynamicLink";
     /** @hide */
-    // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+    // TODO This @VisibleForTesting annotation was being ignored by prod code.
     // Please check that removing it is correct, and remove this comment along with it.
     // @VisibleForTesting
     public static final String KEY_DYNAMIC_LINK_PARAMETERS = "parameters";
     /** @hide */
-    // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+    // TODO This @VisibleForTesting annotation was being ignored by prod code.
     // Please check that removing it is correct, and remove this comment along with it.
     // @VisibleForTesting
     public static final String KEY_SUFFIX = "suffix";
     /** @hide */
-    // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+    // TODO This @VisibleForTesting annotation was being ignored by prod code.
     // Please check that removing it is correct, and remove this comment along with it.
     // @VisibleForTesting
     public static final String KEY_API_KEY = "apiKey";

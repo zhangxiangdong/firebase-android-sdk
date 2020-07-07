@@ -422,7 +422,7 @@ public class MapperTest {
 
   /**
    * This form is not terribly useful in Java, but Kotlin Maps are immutable and are rewritten into
-   * this form (b/67470108 has more details).
+   * this form.
    */
   private static class UpperBoundedMapBean {
     private Map<String, ? extends Date> values;

@@ -27,7 +27,7 @@ import com.google.firebase.firestore.util.Logger;
 import java.util.Collections;
 import java.util.Map;
 
-// TOOD(b/140938512): Drop SimpleQueryEngine and rename IndexFreeQueryEngine.
+// TODO Drop SimpleQueryEngine and rename IndexFreeQueryEngine.
 
 /**
  * A query engine that takes advantage of the target document mapping in the TargetCache. The

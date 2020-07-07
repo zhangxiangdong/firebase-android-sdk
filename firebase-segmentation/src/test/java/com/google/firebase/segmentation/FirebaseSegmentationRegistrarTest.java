@@ -33,7 +33,7 @@ public class FirebaseSegmentationRegistrarTest {
     FirebaseApp.clearInstancesForTest();
   }
 
-  // TODO(rgowman:b/123870630): Enable test.
+  // TODO Enable test.
   @Ignore
   @Test
   public void getFirebaseInstallationsInstance() {

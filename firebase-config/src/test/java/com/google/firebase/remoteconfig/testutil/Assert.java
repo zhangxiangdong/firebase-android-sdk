@@ -910,7 +910,7 @@ public class Assert {
    */
   public static <T extends Throwable> T expectThrows(
       Class<T> expectedThrowable, ThrowingRunnable runnable) {
-    // Sanity check due to b/31386321.
+    // Sanity check.
     assertFalse("Class metadata is corrupt", isInstanceOfTypeJ2cl(new Object(), String.class));
 
     try {

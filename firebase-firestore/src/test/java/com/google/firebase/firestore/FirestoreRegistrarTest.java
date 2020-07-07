@@ -29,7 +29,7 @@ import org.robolectric.RobolectricTestRunner;
 
 @RunWith(RobolectricTestRunner.class)
 public class FirestoreRegistrarTest {
-  // TODO(rgowman:b/123870630): Enable test.
+  // TODO(rgowman): Enable test.
   @Ignore
   @Test
   public void storageRegistrar_getComponents_publishesLibVersionComponent() {

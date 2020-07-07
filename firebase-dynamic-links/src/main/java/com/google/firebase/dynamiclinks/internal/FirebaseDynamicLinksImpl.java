@@ -71,7 +71,7 @@ public class FirebaseDynamicLinksImpl extends FirebaseDynamicLinks {
     this.analytics = analytics;
 
     if (analytics == null) {
-      // b/34217790: Try to get an instance of Analytics. This initializes Google Analytics
+      // Try to get an instance of Analytics. This initializes Google Analytics
       // if it is set up for the app, which sets up the association for the app and package name,
       // allowing GmsCore to log FDL events on behalf of the app.
 
