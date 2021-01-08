@@ -14,6 +14,8 @@
 
 package com.google.firebase.database;
 
+import android.util.Log;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1381,25 +1383,49 @@ public class QueryTest {
 
   // TODO(wyszynski): endBefore
   @Test
-  public void startAfterWithPriorityWorks() throws DatabaseException, InterruptedException {
+  public void startAfterEndAtWithPriorityWorks() throws DatabaseException, InterruptedException {
     DatabaseReference ref = IntegrationTestHelpers.getRandomNode();
 
-    ValueExpectationHelper helper = new ValueExpectationHelper();
-    helper.add(
-        ref.startAfter("w").endAt("y"),
-        new MapBuilder().put("d", 4L).put("b", 2L).put("c", 3L).build());
-    helper.add(ref.startAfter("w").endAt("x"), new MapBuilder().put("d", 4L).put("c", 3L).build());
-    helper.add(ref.startAfter("a").endAt("c"), null);
+//    ValueExpectationHelper helper = new ValueExpectationHelper();
+//    helper.add(
+//        ref.startAfter("w").endAt("y"),
+//        new MapBuilder().put("b", 2L).put("c", 3L).build());
+    Semaphore semaphore = new Semaphore(0);
+    System.out.println("EXECUTING HERE.");
+    ref.startAfter("w").endAt("y").addValueEventListener(new ValueEventListener() {
+      @Override
+      public void onDataChange(@NonNull DataSnapshot snapshot) {
+        Log.i("Test", "Result = " + snapshot.getValue());
+        semaphore.release();
+      }
+
+      @Override
+      public void onCancelled(@NonNull DatabaseError error) {
+
+      }
+    });
 
     ref.setValue(
-        new MapBuilder()
-            .put("a", new MapBuilder().put(".value", 1).put(".priority", "z").build())
-            .put("b", new MapBuilder().put(".value", 2).put(".priority", "y").build())
-            .put("c", new MapBuilder().put(".value", 3).put(".priority", "x").build())
-            .put("d", new MapBuilder().put(".value", 4).put(".priority", "w").build())
-            .build());
+            new MapBuilder()
+                    .put("a", new MapBuilder().put(".value", 1).put(".priority", "z").build())
+                    .put("b", new MapBuilder().put(".value", 2).put(".priority", "y").build())
+                    .put("c", new MapBuilder().put(".value", 3).put(".priority", "x").build())
+                    .put("d", new MapBuilder().put(".value", 4).put(".priority", "w").build())
+                    .build());
 
-    helper.waitForEvents();
+    IntegrationTestHelpers.waitFor(semaphore);
+//    helper.add(ref.startAfter("w").endAt("x"), new MapBuilder().put("c", 3L).build());
+//    helper.add(ref.startAfter("a").endAt("c"), null);
+
+//    ref.setValue(
+//        new MapBuilder()
+//            .put("a", new MapBuilder().put(".value", 1).put(".priority", "z").build())
+//            .put("b", new MapBuilder().put(".value", 2).put(".priority", "y").build())
+//            .put("c", new MapBuilder().put(".value", 3).put(".priority", "x").build())
+//            .put("d", new MapBuilder().put(".value", 4).put(".priority", "w").build())
+//            .build());
+//
+//    helper.waitForEvents();
   }
 
   @Test
@@ -1442,9 +1468,9 @@ public class QueryTest {
     ValueExpectationHelper helper = new ValueExpectationHelper();
     helper.add(
         ref.startAfter("w").endAt("y"),
-        new MapBuilder().put("b", 2L).put("c", 3L).put("d", 4L).build());
-    helper.add(ref.startAt("w").endAt("x"), new MapBuilder().put("c", 3L).put("d", 4L).build());
-    helper.add(ref.startAt("a").endAt("c"), null);
+        new MapBuilder().put("b", 2L).put("c", 3L).build());
+    helper.add(ref.startAfter("w").endAt("x"), new MapBuilder().put("c", 3L).build());
+    helper.add(ref.startAfter("a").endAt("c"), null);
 
     helper.waitForEvents();
   }
