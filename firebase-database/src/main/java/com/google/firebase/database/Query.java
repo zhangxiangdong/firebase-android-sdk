@@ -14,8 +14,6 @@
 
 package com.google.firebase.database;
 
-import android.util.Log;
-
 import static com.google.firebase.database.core.utilities.Utilities.hardAssert;
 
 import androidx.annotation.NonNull;
@@ -45,9 +43,6 @@ import com.google.firebase.database.snapshot.PriorityIndex;
 import com.google.firebase.database.snapshot.PriorityUtilities;
 import com.google.firebase.database.snapshot.StringNode;
 import com.google.firebase.database.snapshot.ValueIndex;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The Query class (and its subclass, {@link DatabaseReference}) are used for reading data.
@@ -294,10 +289,6 @@ public class Query {
    */
   @NonNull
   public Query startAfter(@Nullable String value) {
-    System.out.println("LOOK HERE START AFTER");
-    System.exit(1);
-    Log.e("LOOK HERE", "START AFTER");
-    getRepo().getLogger("test").error("LOOK HERE", new Error("START AFTER"));
     return startAt(value, ChildKey.getMaxName().asString());
   }
 
@@ -472,9 +463,9 @@ public class Query {
     }
     ChildKey childKey = null;
     if (key != null) {
-      if (key.equals(ChildKey.getMinName().toString())) {
+      if (key.equals(ChildKey.MIN_KEY_NAME)) {
         childKey = ChildKey.getMinName();
-      } else if (key.equals(ChildKey.getMaxName().toString())) {
+      } else if (key.equals(ChildKey.MAX_KEY_NAME)) {
         childKey = ChildKey.getMaxName();
       } else {
         childKey = ChildKey.fromString(key);
