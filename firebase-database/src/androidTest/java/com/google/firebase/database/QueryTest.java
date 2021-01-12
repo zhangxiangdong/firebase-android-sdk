@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -657,6 +658,45 @@ public class QueryTest {
         new MapBuilder().put("c", 3L).put("d", 4L).build());
 
     expectations.waitForEvents();
+  }
+
+  @Test
+  public void testChildRemovedStuff() throws InterruptedException, ExecutionException, TimeoutException, TestFailure {
+    DatabaseReference ref = IntegrationTestHelpers.getRandomNode();
+
+    new WriteFuture(ref.child("l/b"), 2L, "b").timedGet();
+
+    final Semaphore semaphore = new Semaphore(0);
+
+    ref.child("l").startAfter("a").endAt("d").addChildEventListener(new ChildEventListener() {
+      @Override
+      public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+        System.out.println("Child added " + snapshot.getValue());
+      }
+
+      @Override
+      public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+        System.out.println("Child changed " + snapshot.getValue());
+      }
+
+      @Override
+      public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+        System.out.println("Child removed " + snapshot.getValue());
+        semaphore.release();
+      }
+
+      @Override
+      public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+        System.out.println("Child moved " + snapshot.getValue());
+      }
+
+      @Override
+      public void onCancelled(@NonNull DatabaseError error) {
+      }
+    });
+
+    new WriteFuture(ref.child("l/b"), 4L, "a").timedGet();
+    IntegrationTestHelpers.waitFor(semaphore);
   }
 
   @Test
