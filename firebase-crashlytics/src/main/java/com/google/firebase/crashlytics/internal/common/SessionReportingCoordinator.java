@@ -172,8 +172,10 @@ public class SessionReportingCoordinator implements CrashlyticsLifecycleEvents {
    *     sent.
    */
   public Task<Void> sendReports(@NonNull Executor reportSendCompleteExecutor) {
+    Logger.getLogger().v("Sending all finalized reports.");
     final List<CrashlyticsReportWithSessionId> reportsToSend =
         reportPersistence.loadFinalizedReports();
+    Logger.getLogger().v("Sending " + reportsToSend.size() + " reports.");
     final List<Task<Boolean>> sendTasks = new ArrayList<>();
     for (CrashlyticsReportWithSessionId reportToSend : reportsToSend) {
       sendTasks.add(

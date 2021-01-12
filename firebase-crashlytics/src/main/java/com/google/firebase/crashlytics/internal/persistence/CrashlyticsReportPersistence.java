@@ -234,7 +234,10 @@ public class CrashlyticsReportPersistence {
     allReports.ensureCapacity(allReportFiles.size());
     for (File reportFile : getAllFinalizedReportFiles()) {
       try {
+        Logger.getLogger().v("Loading report from report file " + reportFile);
         CrashlyticsReport jsonReport = TRANSFORM.reportFromJson(readTextFile(reportFile));
+
+        Logger.getLogger().v("On load, report has " + getEventCountFromReport(jsonReport) + " events.");
         allReports.add(CrashlyticsReportWithSessionId.create(jsonReport, reportFile.getName()));
       } catch (IOException e) {
         Logger.getLogger().w("Could not load report file " + reportFile + "; deleting", e);
@@ -308,6 +311,8 @@ public class CrashlyticsReportPersistence {
       return;
     }
 
+    Logger.getLogger().v("Found " + eventFiles.size() + " event files.");
+
     Collections.sort(eventFiles);
     final List<Event> events = new ArrayList<>();
     boolean isHighPriorityReport = false;
@@ -315,11 +320,14 @@ public class CrashlyticsReportPersistence {
     for (File eventFile : eventFiles) {
       try {
         events.add(TRANSFORM.eventFromJson(readTextFile(eventFile)));
+        Logger.getLogger().v("Added event " + eventFile + " to session events.");
         isHighPriorityReport = isHighPriorityReport || isHighPriorityEventFile(eventFile.getName());
       } catch (IOException e) {
         Logger.getLogger().w("Could not add event to report for " + eventFile, e);
       }
     }
+
+    Logger.getLogger().v("Session contains " + events.size() + " events.");
 
     // b/168902195
     if (events.isEmpty()) {
@@ -367,6 +375,7 @@ public class CrashlyticsReportPersistence {
       long sessionEndTime,
       boolean isCrashed,
       @Nullable String userId) {
+    Logger.getLogger().v("Synthesizing report file with " + events.size() + " events.");
     try {
       CrashlyticsReport report =
           TRANSFORM
@@ -381,6 +390,8 @@ public class CrashlyticsReportPersistence {
         return;
       }
 
+      Logger.getLogger().v("Writing report file for session " + session.getIdentifier());
+      Logger.getLogger().v("Report to be written has " + getEventCountFromReport(report) + " events.");
       writeTextFile(
           new File(prepareDirectory(outputDirectory), session.getIdentifier()),
           TRANSFORM.reportToJson(report));
@@ -519,6 +530,23 @@ public class CrashlyticsReportPersistence {
       numRetained--;
     }
     return numRetained;
+  }
+
+  private static int getEventCountFromReport(@Nullable CrashlyticsReport report) {
+    if (report.getNdkPayload() != null) {
+      Logger.getLogger().v("Report has an NDK payload, no events.");
+      return 0;
+    }
+    final Session session = report.getSession();
+    if (session == null) {
+      Logger.getLogger().v("Report has no session!");
+      return 0;
+    }
+    if (session.getEvents() == null) {
+      Logger.getLogger().v("Session has no event list!");
+      return 0;
+    }
+    return session.getEvents().size();
   }
 
   private static void recursiveDelete(@Nullable File file) {
