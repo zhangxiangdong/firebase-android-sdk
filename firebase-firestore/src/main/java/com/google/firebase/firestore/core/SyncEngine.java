@@ -314,6 +314,8 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
       TargetChange targetChange = entry.getValue();
       LimboResolution limboResolution = activeLimboResolutionsByTarget.get(targetId);
       if (limboResolution != null) {
+        Logger.warn("zzyzx", "handleRemoteEvent() limboResolution.key=" + limboResolution.key + " targetChange.getAddedDocuments().size()=" + targetChange.getAddedDocuments().size() + " targetChange.getModifiedDocuments().size()=" + targetChange.getModifiedDocuments().size() + " targetChange.getRemovedDocuments().size()=" + targetChange.getRemovedDocuments().size());
+
         // Since this is a limbo resolution lookup, it's for a single document and it could be
         // added, modified, or removed, but not a combination.
         hardAssert(
@@ -389,6 +391,7 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
     LimboResolution limboResolution = activeLimboResolutionsByTarget.get(targetId);
     DocumentKey limboKey = limboResolution != null ? limboResolution.key : null;
     if (limboKey != null) {
+      Logger.warn("zzyzx", "handleRejectedListen() limboKey=" + limboKey + " targetId=" + targetId);
       // Since this query failed, we won't want to manually unlisten to it.
       // So go ahead and remove it from bookkeeping.
       activeLimboTargetsByKey.remove(limboKey);
@@ -551,6 +554,7 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
     // It's possible that the target already got removed because the query failed. In that case,
     // the key won't exist in `limboTargetsByKey`. Only do the cleanup if we still have the target.
     Integer targetId = activeLimboTargetsByKey.get(key);
+    Logger.warn("zzyzx", "removeLimboTarget() start; key=" + key + " targetId=" + targetId);
     if (targetId != null) {
       remoteStore.stopListening(targetId);
       activeLimboTargetsByKey.remove(key);
@@ -601,10 +605,12 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
     for (LimboDocumentChange limboChange : limboChanges) {
       switch (limboChange.getType()) {
         case ADDED:
+          Logger.warn("zzyzx", "updateTrackedLimboDocuments() ADDED " + limboChange.getKey());
           limboDocumentRefs.addReference(limboChange.getKey(), targetId);
           trackLimboChange(limboChange);
           break;
         case REMOVED:
+          Logger.warn("zzyzx", "updateTrackedLimboDocuments() REMOVED " + limboChange.getKey());
           Logger.debug(TAG, "Document no longer in limbo: %s", limboChange.getKey());
           DocumentKey limboDocKey = limboChange.getKey();
           limboDocumentRefs.removeReference(limboDocKey, targetId);
@@ -621,6 +627,7 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
 
   private void trackLimboChange(LimboDocumentChange change) {
     DocumentKey key = change.getKey();
+    Logger.warn("zzyzx", "trackLimboChange() for " + key + ": activeLimboTargetsByKey.get(key)==" + activeLimboTargetsByKey.get(key));
     if (!activeLimboTargetsByKey.containsKey(key)) {
       Logger.debug(TAG, "New document in limbo: %s", key);
       enqueuedLimboResolutions.add(key);
@@ -637,10 +644,12 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
    * https://github.com/firebase/firebase-js-sdk/issues/2683.
    */
   private void pumpEnqueuedLimboResolutions() {
+    Logger.warn("zzyzx", "pumpEnqueuedLimboResolutions() start; enqueuedLimboResolutions.size()=" + enqueuedLimboResolutions.size() + " activeLimboTargetsByKey.size()=" + activeLimboTargetsByKey.size());
     while (!enqueuedLimboResolutions.isEmpty()
         && activeLimboTargetsByKey.size() < maxConcurrentLimboResolutions) {
       DocumentKey key = enqueuedLimboResolutions.remove();
       int limboTargetId = targetIdGenerator.nextId();
+      Logger.warn("zzyzx", "pumpEnqueuedLimboResolutions() starting listen for " + key + " (limboTargetId=" + limboTargetId + ")");
       activeLimboResolutionsByTarget.put(limboTargetId, new LimboResolution(key));
       activeLimboTargetsByKey.put(key, limboTargetId);
       remoteStore.listen(
@@ -650,6 +659,7 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
               ListenSequence.INVALID,
               QueryPurpose.LIMBO_RESOLUTION));
     }
+    Logger.warn("zzyzx", "pumpEnqueuedLimboResolutions() done; enqueuedLimboResolutions.size()=" + enqueuedLimboResolutions.size() + " activeLimboTargetsByKey.size()=" + activeLimboTargetsByKey.size());
   }
 
   @VisibleForTesting
