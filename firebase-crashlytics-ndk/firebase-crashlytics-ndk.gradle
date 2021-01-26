@@ -105,10 +105,6 @@ def fixTrampolineFilenames(variantBaseName) {
     }
 }
 
-thirdPartyLicenses {
-    add 'Crashpad', "file://${rootDir}/third_party/licenses/apache-2.0.txt"
-}
-
 dependencies {
     implementation project(':firebase-common')
     implementation project(':firebase-components')

@@ -48,10 +48,6 @@ android {
     }
 }
 
-thirdPartyLicenses {
-    add 'Tape', "file://${projectDir}/third_party_licenses/tape/LICENSE"
-}
-
 dependencies {
     compileOnly 'com.google.auto.value:auto-value-annotations:1.6.5'
 
