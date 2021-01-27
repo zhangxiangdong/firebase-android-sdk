@@ -88,7 +88,7 @@ class JarJarTransformer(
         val rulesFile = File.createTempFile(parentPackage, ".jarjar")
         rulesFile.printWriter().use {
             for (externalPackageName in packagesToVendor) {
-                it.println("rule $externalPackageName.** $parentPackage.@0")
+                it.println("rule ${externalPackageName.replace('\\', '.')}.** $parentPackage.@0")
             }
         }
         logger.info("The following JarJar configuration will be used:\n ${rulesFile.readText()}")
