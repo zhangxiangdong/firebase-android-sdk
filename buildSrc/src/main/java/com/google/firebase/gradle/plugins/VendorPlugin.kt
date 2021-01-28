@@ -88,7 +88,7 @@ class JarJarTransformer(
         val rulesFile = File.createTempFile(parentPackage, ".jarjar")
         rulesFile.printWriter().use {
             for (externalPackageName in packagesToVendor) {
-                it.println("rule ${externalPackageName.replace('\\', '.')}.** $parentPackage.@0")
+                it.println("rule $externalPackageName.** $parentPackage.@0")
             }
         }
         logger.info("The following JarJar configuration will be used:\n ${rulesFile.readText()}")
@@ -202,7 +202,7 @@ class VendorTransform(
     }
 
     private fun inferPackages(dir: File): Set<String> {
-        return dir.walk().filter { it.name.endsWith(".class") }.map { it.parentFile.toRelativeString(dir).replace('/', '.') }.toSet()
+        return dir.walk().filter { it.name.endsWith(".class") }.map { it.parentFile.toRelativeString(dir).replace('\\', '.').replace('/', '.') }.toSet()
     }
 }
 
