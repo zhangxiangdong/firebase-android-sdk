@@ -1,0 +1,32 @@
+To roll your own build and use it in your app, run the following command:
+
+gradlew publishToMavenLocal
+
+Then, in your app's root-level `build.gradle` file, add `mavenLocal()` to the
+list of repositories for `allprojects`:
+
+allprojects {
+    repositories {
+        mavenLocal()
+        google()
+        jcenter()
+    }
+}
+
+Then, in your app's `build.gradle` file change
+
+implementation 'com.google.firebase:firebase-firestore:22.0.2'
+
+or
+
+implementation platform('com.google.firebase:firebase-bom:26.3.0')
+implementation 'com.google.firebase:firebase-firestore'
+
+to
+
+implementation 'com.google.firebase:firebase-firestore:22.0.2-SNAPSHOT'
+implementation 'com.google.firebase:firebase-auth-interop:18.0.0'
+implementation 'io.grpc:grpc-protobuf-lite:1.15.0'
+implementation 'io.grpc:grpc-okhttp:1.28.0'
+implementation 'io.grpc:grpc-android:1.28.0'
+implementation 'io.grpc:grpc-stub:1.28.0'
