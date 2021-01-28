@@ -234,14 +234,14 @@ private fun zipFiles(zipOut: ZipOutputStream, sourceFile: File, parentDirPath: S
             val path = if (parentDirPath == "") {
                 f.name
             } else {
-                parentDirPath + File.separator + f.name
+                parentDirPath.replace('\\', '/') + '/' + f.name
             }
             // Call recursively to add files within this directory
             zipFiles(zipOut, f, path)
         } else {
             FileInputStream(f).use { fi ->
                 BufferedInputStream(fi).use { origin ->
-                    val path = parentDirPath + File.separator + f.name
+                    val path = parentDirPath.replace('\\', '/') + '/' + f.name
                     val entry = ZipEntry(path)
                     entry.time = f.lastModified()
                     entry.isDirectory
