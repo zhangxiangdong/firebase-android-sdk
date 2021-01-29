@@ -550,11 +550,25 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
     }
   }
 
+  private String describeKeyInActiveLimboTargetsByKey(DocumentKey key) {
+    ArrayList<String> list = new ArrayList<>();
+    for (DocumentKey currentKey : activeLimboTargetsByKey.keySet()) {
+      list.add(currentKey.toString());
+    }
+    Collections.sort(list);
+    return "activeLimboTargetsByKey.containsKey(key)="
+      + activeLimboTargetsByKey.containsKey(key)
+      + " (by string: "
+      + list.contains(key.toString())
+      + ") activeLimboTargetsByKey="
+      + list;
+  }
+
   private void removeLimboTarget(DocumentKey key) {
     // It's possible that the target already got removed because the query failed. In that case,
     // the key won't exist in `limboTargetsByKey`. Only do the cleanup if we still have the target.
     Integer targetId = activeLimboTargetsByKey.get(key);
-    Logger.warn("zzyzx", "removeLimboTarget() start; key=" + key + " targetId=" + targetId);
+    Logger.warn("zzyzx", "removeLimboTarget() start; key=" + key + " targetId=" + targetId + " " + describeKeyInActiveLimboTargetsByKey(key));
     if (targetId != null) {
       remoteStore.stopListening(targetId);
       activeLimboTargetsByKey.remove(key);
