@@ -569,6 +569,7 @@ public class SyncEngine implements RemoteStore.RemoteStoreCallback {
     // the key won't exist in `limboTargetsByKey`. Only do the cleanup if we still have the target.
     Integer targetId = activeLimboTargetsByKey.get(key);
     Logger.warn("zzyzx", "removeLimboTarget() start; key=" + key + " targetId=" + targetId + " " + describeKeyInActiveLimboTargetsByKey(key));
+    enqueuedLimboResolutions.remove(key);
     if (targetId != null) {
       remoteStore.stopListening(targetId);
       activeLimboTargetsByKey.remove(key);
