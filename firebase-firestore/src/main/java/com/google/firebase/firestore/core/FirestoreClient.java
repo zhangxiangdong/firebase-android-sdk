@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class FirestoreClient {
 
   private static final String LOG_TAG = "FirestoreClient";
-  private static final int MAX_CONCURRENT_LIMBO_RESOLUTIONS = 10;
+  private static final int MAX_CONCURRENT_LIMBO_RESOLUTIONS = 100;
 
   private final DatabaseInfo databaseInfo;
   private final CredentialsProvider credentialsProvider;
