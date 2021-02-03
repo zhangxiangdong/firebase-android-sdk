@@ -40,7 +40,10 @@ import com.google.firebase.database.collection.ImmutableSortedSet;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.firebase.firestore.LoadBundleTask;
 import com.google.firebase.firestore.auth.User;
+import com.google.firebase.firestore.bundle.BundleReader;
+import com.google.firebase.firestore.bundle.BundleSerializer;
 import com.google.firebase.firestore.core.ComponentProvider;
 import com.google.firebase.firestore.core.DatabaseInfo;
 import com.google.firebase.firestore.core.DocumentViewChange;
@@ -66,6 +69,7 @@ import com.google.firebase.firestore.model.mutation.MutationResult;
 import com.google.firebase.firestore.remote.ExistenceFilter;
 import com.google.firebase.firestore.remote.MockDatastore;
 import com.google.firebase.firestore.remote.RemoteEvent;
+import com.google.firebase.firestore.remote.RemoteSerializer;
 import com.google.firebase.firestore.remote.RemoteStore;
 import com.google.firebase.firestore.remote.RemoteStore.RemoteStoreCallback;
 import com.google.firebase.firestore.remote.WatchChange;
@@ -97,6 +101,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.apache.tools.ant.filters.StringInputStream;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -190,7 +195,7 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
   private Set<DocumentKey> expectedEnqueuedLimboDocs;
 
   /** Set of expected active targets, keyed by target ID. */
-  private Map<Integer, Pair<List<TargetData>, String>> expectedActiveTargets;
+  private Map<Integer, List<TargetData>> expectedActiveTargets;
 
   /**
    * The writes that have been sent to the SyncEngine via {@link SyncEngine#writeMutations} but not
@@ -466,9 +471,9 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
   // Methods for doing the steps of the spec test.
   //
 
-  private void doListen(JSONArray listenSpec) throws Exception {
-    int expectedId = listenSpec.getInt(0);
-    Query query = parseQuery(listenSpec.get(1));
+  private void doListen(JSONObject listenSpec) throws Exception {
+    int expectedId = listenSpec.getInt("targetId");
+    Query query = parseQuery(listenSpec.getJSONObject("query"));
     // TODO: Allow customizing listen options in spec tests
     ListenOptions options = new ListenOptions();
     options.includeDocumentMetadataChanges = true;
@@ -499,6 +504,20 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
     Query query = parseQuery(unlistenSpec.get(1));
     QueryListener listener = queryListeners.remove(query);
     queue.runSync(() -> eventManager.removeQueryListener(listener));
+  }
+
+  private void doLoadBundle(String json) throws Exception {
+    BundleReader bundleReader =
+        new BundleReader(
+            new BundleSerializer(new RemoteSerializer(databaseInfo.getDatabaseId())),
+            new StringInputStream(json));
+    LoadBundleTask bundleTask = new LoadBundleTask();
+    queue.runSync(
+        () -> {
+          syncEngine.loadBundle(bundleReader, bundleTask);
+          bundleTask.addOnFailureListener(e -> log("Loading bundle failed with " + e));
+        });
+    assertTrue(bundleTask.isSuccessful());
   }
 
   private void doMutation(Mutation mutation) throws Exception {
@@ -784,7 +803,7 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
     }
 
     if (step.has("userListen")) {
-      doListen(step.getJSONArray("userListen"));
+      doListen(step.getJSONObject("userListen"));
     } else if (step.has("userUnlisten")) {
       doUnlisten(step.getJSONArray("userUnlisten"));
     } else if (step.has("userSet")) {
@@ -799,6 +818,8 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
       doRemoveSnapshotsInSyncListener();
     } else if (step.has("drainQueue")) {
       doDrainQueue();
+    } else if (step.has("loadBundle")) {
+      doLoadBundle(step.getString("loadBundle"));
     } else if (step.has("watchAck")) {
       doWatchAck(step.getJSONArray("watchAck"));
     } else if (step.has("watchCurrent")) {
@@ -963,10 +984,9 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
           int targetId = Integer.parseInt(targetIdString);
 
           JSONObject queryDataJson = activeTargets.getJSONObject(targetIdString);
-          String resumeToken = queryDataJson.getString("resumeToken");
           JSONArray queryArrayJson = queryDataJson.getJSONArray("queries");
 
-          expectedActiveTargets.put(targetId, new Pair<>(new ArrayList<>(), resumeToken));
+          expectedActiveTargets.put(targetId, new ArrayList<>());
           for (int i = 0; i < queryArrayJson.length(); i++) {
             Query query = parseQuery(queryArrayJson.getJSONObject(i));
             // TODO: populate the purpose of the target once it's possible to encode that in the
@@ -974,10 +994,19 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
             // always the right value.
             TargetData targetData =
                 new TargetData(
-                        query.toTarget(), targetId, ARBITRARY_SEQUENCE_NUMBER, QueryPurpose.LISTEN)
-                    .withResumeToken(ByteString.copyFromUtf8(resumeToken), SnapshotVersion.NONE);
+                    query.toTarget(), targetId, ARBITRARY_SEQUENCE_NUMBER, QueryPurpose.LISTEN);
+            if (queryDataJson.has("resumeToken")) {
+              targetData =
+                  targetData.withResumeToken(
+                      ByteString.copyFromUtf8(queryDataJson.getString("resumeToken")),
+                      SnapshotVersion.NONE);
+            } else {
+              targetData =
+                  targetData.withResumeToken(
+                      ByteString.EMPTY, version(queryDataJson.getInt("readTime")));
+            }
 
-            expectedActiveTargets.get(targetId).first.add(targetData);
+            expectedActiveTargets.get(targetId).add(targetData);
           }
         }
       }
@@ -1095,13 +1124,12 @@ public abstract class SpecTestCase implements RemoteStoreCallback {
     // Create a copy so we can modify it in tests
     Map<Integer, TargetData> actualTargets = new HashMap<>(datastore.activeTargets());
 
-    for (Map.Entry<Integer, Pair<List<TargetData>, String>> expected :
-        expectedActiveTargets.entrySet()) {
+    for (Map.Entry<Integer, List<TargetData>> expected : expectedActiveTargets.entrySet()) {
       assertTrue(
           "Expected active target not found: " + expected.getValue(),
           actualTargets.containsKey(expected.getKey()));
 
-      List<TargetData> expectedQueries = expected.getValue().first;
+      List<TargetData> expectedQueries = expected.getValue();
       TargetData expectedTarget = expectedQueries.get(0);
       TargetData actualTarget = actualTargets.get(expected.getKey());
 
