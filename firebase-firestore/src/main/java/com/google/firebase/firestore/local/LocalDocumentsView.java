@@ -82,7 +82,7 @@ class LocalDocumentsView {
   private Document getDocument(DocumentKey key, List<MutationBatch> inBatches) {
     Document document = remoteDocumentCache.get(key);
     for (MutationBatch batch : inBatches) {
-      batch.applyToLocalView(key, document);
+      batch.applyToLocalView(document);
     }
 
     return document;
