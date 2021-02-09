@@ -88,39 +88,41 @@ public class BundleReaderTest {
           key("coll/doc1"), version(5600000L), /* exists= */ true, Collections.emptyList());
   public static final BundleDocument DOC1 =
       new BundleDocument(
-          new Document(
-              key("coll/doc1")).asFoundDocument(
-              version(30004000L),
-              ObjectValue.fromMap(
-                  map(
-                      "foo",
-                      Value.newBuilder().setStringValue("value1").build(),
-                      "bar",
-                      Value.newBuilder().setIntegerValue(-42).build()))));
+          new Document(key("coll/doc1"))
+              .asFoundDocument(
+                  version(30004000L),
+                  ObjectValue.fromMap(
+                      map(
+                          "foo",
+                          Value.newBuilder().setStringValue("value1").build(),
+                          "bar",
+                          Value.newBuilder().setIntegerValue(-42).build()))));
   public static final BundledDocumentMetadata DOC2_METADATA =
       new BundledDocumentMetadata(
           key("coll/doc1"), version(5600001L), /* exists= */ true, Collections.emptyList());
   public static final BundleDocument DOC2 =
       new BundleDocument(
-          new Document(
-              key("coll/doc2")).asFoundDocument(
-              version(30004001L),
-              ObjectValue.fromMap(
-                  map(
-                      "foo",
-                      Value.newBuilder().setStringValue("value2").build(),
-                      "bar",
-                      Value.newBuilder().setIntegerValue(42).build()))));
+          new Document(key("coll/doc2"))
+              .asFoundDocument(
+                  version(30004001L),
+                  ObjectValue.fromMap(
+                      map(
+                          "foo",
+                          Value.newBuilder().setStringValue("value2").build(),
+                          "bar",
+                          Value.newBuilder().setIntegerValue(42).build()))));
   public static final BundledDocumentMetadata DOC3_METADATA =
       new BundledDocumentMetadata(
           key("coll/doc3"), version(5600002L), /* exists= */ true, Collections.emptyList());
   public static final BundleDocument DOC3 =
       new BundleDocument(
-          new Document(
-              key("coll/doc3")).asFoundDocument(
-              version(30004002L),
-              ObjectValue.fromMap(
-                  map("unicodeValue", Value.newBuilder().setStringValue("\uD83D\uDE0A").build()))));
+          new Document(key("coll/doc3"))
+              .asFoundDocument(
+                  version(30004002L),
+                  ObjectValue.fromMap(
+                      map(
+                          "unicodeValue",
+                          Value.newBuilder().setStringValue("\uD83D\uDE0A").build()))));
 
   @Test
   public void testReadsQueryAndDocument() throws IOException, JSONException {

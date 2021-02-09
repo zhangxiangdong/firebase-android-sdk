@@ -72,8 +72,8 @@ public class BundleLoader {
         documents =
             documents.insert(
                 bundledDocumentMetadata.getKey(),
-                new Document(
-                    bundledDocumentMetadata.getKey()).asMissingDocument(bundledDocumentMetadata.getReadTime()));
+                new Document(bundledDocumentMetadata.getKey())
+                    .asMissingDocument(bundledDocumentMetadata.getReadTime()));
         currentDocument = null;
       }
     } else if (bundleElement instanceof BundleDocument) {

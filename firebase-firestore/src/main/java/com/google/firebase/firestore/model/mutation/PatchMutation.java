@@ -128,15 +128,17 @@ public final class PatchMutation extends Mutation {
   public void applyToLocalView(Document document, Timestamp localWriteTime) {
     verifyKeyMatches(document);
 
-    if (getPrecondition().isValidFor(document)) {
-      Map<FieldPath, Value> transformResults = localTransformResults(localWriteTime, document);
-      ObjectValue value = document.getData();
-      value.set(getPatch());
-      value.set(transformResults);
-      document
-          .asFoundDocument(getPostMutationVersion(document), document.getData())
-          .withLocalMutations();
+    if (!getPrecondition().isValidFor(document)) {
+      return;
     }
+
+    Map<FieldPath, Value> transformResults = localTransformResults(localWriteTime, document);
+    ObjectValue value = document.getData();
+    value.set(getPatch());
+    value.set(transformResults);
+    document
+        .asFoundDocument(getPostMutationVersion(document), document.getData())
+        .withLocalMutations();
   }
 
   private Map<FieldPath, Value> getPatch() {

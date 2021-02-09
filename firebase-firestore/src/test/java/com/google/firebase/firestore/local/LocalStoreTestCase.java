@@ -1313,8 +1313,7 @@ public abstract class LocalStoreTestCase {
             asList(2),
             emptyList()));
     assertChanged(
-        doc("foo/bar", 2, map("sum", 1, "array_union", asList("bar", "foo")))
-            .withLocalMutations());
+        doc("foo/bar", 2, map("sum", 1, "array_union", asList("bar", "foo"))).withLocalMutations());
   }
 
   @Test
