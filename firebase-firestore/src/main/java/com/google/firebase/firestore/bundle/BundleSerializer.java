@@ -112,7 +112,7 @@ public class BundleSerializer {
 
     return new BundleDocument(
         new Document(key)
-            .asFoundDocument(updateTime, ObjectValue.fromMap(value.getMapValue().getFieldsMap())));
+            .setFoundDocument(updateTime, ObjectValue.fromMap(value.getMapValue().getFieldsMap())));
   }
 
   private ResourcePath decodeName(String name) {

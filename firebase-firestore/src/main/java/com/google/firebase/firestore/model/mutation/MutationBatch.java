@@ -133,8 +133,8 @@ public final class MutationBatch {
     for (DocumentKey key : getKeys()) {
       Document document = documentMap.get(key);
       applyToLocalView(document);
-      if (!document.isValid()) {
-        document.asMissingDocument(SnapshotVersion.NONE);
+      if (!document.isValidDocument()) {
+        document.setNoDocument(SnapshotVersion.NONE);
       }
       documentMap = documentMap.insert(document.getKey(), document);
     }

@@ -692,7 +692,7 @@ public class BundleSerializerTest {
     BundleDocument expectedDocument =
         new BundleDocument(
             new Document(DocumentKey.fromName(TEST_DOCUMENT))
-                .asFoundDocument(
+                .setFoundDocument(
                     new SnapshotVersion(new com.google.firebase.Timestamp(1577836802, 2)),
                     new ObjectValue(
                         Value.newBuilder()

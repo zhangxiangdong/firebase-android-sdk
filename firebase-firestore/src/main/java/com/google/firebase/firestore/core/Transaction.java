@@ -171,9 +171,9 @@ public class Transaction {
 
   private void recordVersion(Document doc) throws FirebaseFirestoreException {
     SnapshotVersion docVersion;
-    if (doc.exists()) {
+    if (doc.isFoundDocument()) {
       docVersion = doc.getVersion();
-    } else if (doc.isMissing()) {
+    } else if (doc.isNoDocument()) {
       // For nonexistent docs, we must use precondition with version 0 when we overwrite them.
       docVersion = SnapshotVersion.NONE;
     } else {
