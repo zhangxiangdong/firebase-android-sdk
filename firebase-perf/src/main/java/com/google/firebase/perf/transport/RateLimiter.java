@@ -35,6 +35,8 @@ import com.google.firebase.perf.v1.TraceMetric;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import javax.inject.AssistedFactory;
+import javax.inject.AssistedInject;
 
 /**
  * Implement the Token Bucket rate limiting algorithm. The token bucket initially holds "capacity"
@@ -45,52 +47,48 @@ import java.util.concurrent.TimeUnit;
  */
 final class RateLimiter {
 
+  @AssistedFactory
+  public interface RateLimiterFactory {
+    /**
+     * Construct a token bucket rate limiter.
+     *
+     * @param context app context.
+     * @param rate number of token generated per minute.
+     * @param capacity token bucket capacity.
+     */
+    RateLimiter create(Context context, double rate, long capacity);
+  }
+
   /** The app's bucket ID for sampling, a number in [0.0f, 1.0f). */
   private final float samplingBucketId;
-
-  /** Enable android logging or not */
-  private boolean isLogcatEnabled = false;
-
-  private RateLimiterImpl mTraceLimiter = null;
-  private RateLimiterImpl mNetworkLimiter = null;
-
-  /** Gets the sampling and rate limiting configs. */
+  private final RateLimiterImpl mTraceLimiter;
+  private final RateLimiterImpl mNetworkLimiter;
   private final ConfigResolver configResolver;
 
+  // TODO: Delete this once usage has moved to the Factory above.
   /**
    * Construct a token bucket rate limiter.
    *
    * @param context app context.
    * @param rate number of token generated per minute.
    * @param capacity token bucket capacity
+   *
+   * @deprecated Use RateLimiterFactory instead.
    */
   public RateLimiter(@NonNull Context context, final double rate, final long capacity) {
-    this(rate, capacity, new Clock(), getSamplingBucketId(), ConfigResolver.getInstance());
-    this.isLogcatEnabled = Utils.isDebugLoggingEnabled(context);
+    this(new Clock(), ConfigResolver.getInstance(), new Random(), context, rate, capacity);
   }
 
-  /** Generates a bucket id between [0.0f, 1.0f) for sampling, it is sticky across app lifecycle. */
-  @VisibleForTesting
-  static float getSamplingBucketId() {
-    return new Random().nextFloat();
-  }
-
-  RateLimiter(
-      final double rate,
-      final long capacity,
-      final Clock clock,
-      float samplingBucketId,
-      ConfigResolver configResolver) {
-    Utils.checkArgument(
-        0.0f <= samplingBucketId && samplingBucketId < 1.0f,
-        "Sampling bucket ID should be in range [0.0f, 1.0f).");
-    this.samplingBucketId = samplingBucketId;
+  @AssistedInject
+  RateLimiter(Clock clock, ConfigResolver configResolver, Random random, Context context,
+      double rate, long capacity) {
     this.configResolver = configResolver;
+    this.samplingBucketId = random.nextFloat();
 
-    mTraceLimiter =
+    boolean isLogcatEnabled = Utils.isDebugLoggingEnabled(context);
+    this.mTraceLimiter =
         new RateLimiterImpl(rate, capacity, clock, configResolver, TRACE, isLogcatEnabled);
-
-    mNetworkLimiter =
+    this.mNetworkLimiter =
         new RateLimiterImpl(rate, capacity, clock, configResolver, NETWORK, isLogcatEnabled);
   }
 

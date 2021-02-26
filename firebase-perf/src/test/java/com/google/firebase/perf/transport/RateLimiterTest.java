@@ -50,12 +50,14 @@ import org.robolectric.RobolectricTestRunner;
 @RunWith(RobolectricTestRunner.class)
 public class RateLimiterTest extends FirebasePerformanceTestBase {
 
-  private static final long FIFTEEN_SECONDS = TimeUnit.SECONDS.toMicros(15);
+  private static final Duration FIFTEEN_SECONDS = Duration.ofSeconds(15);
 
   @Mock private Clock mClock;
   @Mock private ConfigResolver mockConfigResolver;
 
   private long mCurrentTime = 0;
+  // TODO: Make this a consistent time.
+  private Instant currentTime = Instant.now();
 
   @Before
   public void setUp() {
