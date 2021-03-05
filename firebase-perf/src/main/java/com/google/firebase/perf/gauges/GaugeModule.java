@@ -62,6 +62,7 @@ public class GaugeModule {
     }
   }
 
+  @Provides
   Runtime providesRuntime() {
     return Runtime.getRuntime();
   }
