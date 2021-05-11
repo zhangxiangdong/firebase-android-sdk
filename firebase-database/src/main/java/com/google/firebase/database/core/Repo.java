@@ -41,6 +41,7 @@ import com.google.firebase.database.core.utilities.DefaultClock;
 import com.google.firebase.database.core.utilities.DefaultRunLoop;
 import com.google.firebase.database.core.utilities.OffsetClock;
 import com.google.firebase.database.core.utilities.Tree;
+import com.google.firebase.database.core.view.CacheNode;
 import com.google.firebase.database.core.view.Event;
 import com.google.firebase.database.core.view.EventRaiser;
 import com.google.firebase.database.core.view.QuerySpec;
@@ -543,6 +544,7 @@ public class Repo implements PersistentConnection.Delegate {
                           }
                         } else {
                           Node serverNode = NodeUtilities.NodeFromJSON(task.getResult());
+                          CacheNode serverCache = new CacheNode(IndexedNode.from(serverNode, query.getSpec().getIndex()), false, false);
                           postEvents(
                               serverSyncTree.applyServerOverwrite(query.getPath(), serverNode));
                           source.setResult(

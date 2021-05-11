@@ -4870,6 +4870,27 @@ public class QueryTest {
   }
 
   @Test
+  public void queryGetOrderByChild()
+          throws DatabaseException, ExecutionException, TimeoutException, TestFailure,
+          InterruptedException {
+    List<DatabaseReference> refs = IntegrationTestHelpers.getRootNode(2);
+    DatabaseReference writer = refs.get(0);
+    DatabaseReference reader = refs.get(1);
+
+    new WriteFuture(writer.child("things").push(), new MapBuilder().put("thing", 0L).build()).timedGet();
+    new WriteFuture(writer.child("things").push(), new MapBuilder().put("thing", 1L).build()).timedGet();
+
+    try {
+      DataSnapshot snap = Tasks.await(reader.child("things").orderByChild("thing").get());
+      snap.getChildren().forEach((child) -> {
+        System.out.println((Long)((Map<String, Object>) child.getValue()).get("thing"));
+      });
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  @Test
   public void testAddingListensForTheSamePathDoesNotCheckFail() throws Throwable {
     // This bug manifests itself if there's a hierarchy of query listener, default listener and
     // one-time listener underneath. During one-time listener registration, sync-tree traversal

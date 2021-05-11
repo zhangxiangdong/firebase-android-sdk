@@ -249,6 +249,17 @@ public class IntegrationTestHelpers {
     return results;
   }
 
+  public static List<DatabaseReference> getRootNode(int count) throws DatabaseException {
+    ensureContexts(count);
+    List<DatabaseReference> results = new ArrayList<DatabaseReference>(count);
+    for (int i = 0; i < count; ++i) {
+      DatabaseReference ref =
+              new DatabaseReference(IntegrationTestValues.getNamespace(), contexts.get(i));
+      results.add(ref);
+    }
+    return results;
+  }
+
   public static DatabaseConfig newFrozenTestConfig() {
     DatabaseConfig cfg = newTestConfig();
     CoreTestHelpers.freezeContext(cfg);
