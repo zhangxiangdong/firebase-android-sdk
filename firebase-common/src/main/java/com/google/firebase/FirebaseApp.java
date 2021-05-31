@@ -34,6 +34,8 @@ import androidx.annotation.RestrictTo.Scope;
 import androidx.annotation.VisibleForTesting;
 import androidx.collection.ArrayMap;
 import androidx.core.os.UserManagerCompat;
+import androidx.tracing.Trace;
+
 import com.google.android.gms.common.annotation.KeepForSdk;
 import com.google.android.gms.common.api.internal.BackgroundDetector;
 import com.google.android.gms.common.internal.Objects;
@@ -240,7 +242,9 @@ public class FirebaseApp {
       if (INSTANCES.containsKey(DEFAULT_APP_NAME)) {
         return getInstance();
       }
+      Trace.beginSection("loadFirebaseOptions");
       FirebaseOptions firebaseOptions = FirebaseOptions.fromResource(context);
+      Trace.endSection();
       if (firebaseOptions == null) {
         Log.w(
             LOG_TAG,
@@ -280,28 +284,33 @@ public class FirebaseApp {
   @NonNull
   public static FirebaseApp initializeApp(
       @NonNull Context context, @NonNull FirebaseOptions options, @NonNull String name) {
-    GlobalBackgroundStateListener.ensureBackgroundStateListenerRegistered(context);
-    String normalizedName = normalize(name);
-    final FirebaseApp firebaseApp;
-    Context applicationContext;
-    if (context.getApplicationContext() == null) {
-      // In shared processes' content providers getApplicationContext() can return null.
-      applicationContext = context;
-    } else {
-      applicationContext = context.getApplicationContext();
-    }
-    synchronized (LOCK) {
-      Preconditions.checkState(
-          !INSTANCES.containsKey(normalizedName),
-          "FirebaseApp name " + normalizedName + " already exists!");
+    Trace.beginSection("initializeApp");
+    try {
+      GlobalBackgroundStateListener.ensureBackgroundStateListenerRegistered(context);
+      String normalizedName = normalize(name);
+      final FirebaseApp firebaseApp;
+      Context applicationContext;
+      if (context.getApplicationContext() == null) {
+        // In shared processes' content providers getApplicationContext() can return null.
+        applicationContext = context;
+      } else {
+        applicationContext = context.getApplicationContext();
+      }
+      synchronized (LOCK) {
+        Preconditions.checkState(
+                !INSTANCES.containsKey(normalizedName),
+                "FirebaseApp name " + normalizedName + " already exists!");
 
-      Preconditions.checkNotNull(applicationContext, "Application context cannot be null.");
-      firebaseApp = new FirebaseApp(applicationContext, normalizedName, options);
-      INSTANCES.put(normalizedName, firebaseApp);
-    }
+        Preconditions.checkNotNull(applicationContext, "Application context cannot be null.");
+        firebaseApp = new FirebaseApp(applicationContext, normalizedName, options);
+        INSTANCES.put(normalizedName, firebaseApp);
+      }
 
-    firebaseApp.initializeAllApis();
-    return firebaseApp;
+      firebaseApp.initializeAllApis();
+      return firebaseApp;
+    } finally {
+      Trace.endSection();
+    }
   }
 
   /**

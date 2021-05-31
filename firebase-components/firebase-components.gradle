@@ -17,7 +17,7 @@ plugins {
 }
 
 firebaseLibrary {
-    publishSources = true
+    publishSources = false
 }
 
 android {
@@ -43,6 +43,7 @@ android {
 dependencies {
     implementation project(':firebase-annotations')
     implementation 'androidx.annotation:annotation:1.1.0'
+    implementation 'androidx.tracing:tracing:1.0.0'
 
     testImplementation 'androidx.test:runner:1.2.0'
     testImplementation 'androidx.test.ext:junit:1.1.1'

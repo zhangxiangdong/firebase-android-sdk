@@ -18,6 +18,7 @@ import android.util.Log;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.RestrictTo.Scope;
 import androidx.annotation.VisibleForTesting;
+import androidx.tracing.Trace;
 import com.google.firebase.dynamicloading.ComponentLoader;
 import com.google.firebase.events.Publisher;
 import com.google.firebase.events.Subscriber;
@@ -98,50 +99,79 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
     // ComponentRuntime which, without proper care, can result in a deadlock. For this reason,
     // instead of executing such code in the synchronized block below, we store it in a list and
     // execute right after the synchronized section.
-    List<Runnable> runAfterDiscovery = new ArrayList<>();
-    synchronized (this) {
-      Iterator<Provider<ComponentRegistrar>> iterator = unprocessedRegistrarProviders.iterator();
-      while (iterator.hasNext()) {
-        Provider<ComponentRegistrar> provider = iterator.next();
+    Trace.beginSection("discoverComponents");
+    try {
+      List<Runnable> runAfterDiscovery = new ArrayList<>();
+      synchronized (this) {
+        Iterator<Provider<ComponentRegistrar>> iterator = unprocessedRegistrarProviders.iterator();
+        int i = 0;
+        Trace.beginSection("instantiatingRegistrars");
         try {
-          ComponentRegistrar registrar = provider.get();
-          if (registrar != null) {
-            componentsToAdd.addAll(registrar.getComponents());
-            iterator.remove();
+          while (iterator.hasNext()) {
+            Provider<ComponentRegistrar> provider = iterator.next();
+            try {
+              ComponentRegistrar registrar = provider.get();
+              if (registrar != null) {
+                componentsToAdd.addAll(registrar.getComponents());
+                iterator.remove();
+              }
+            } catch (InvalidRegistrarException ex) {
+              iterator.remove();
+              Log.w(ComponentDiscovery.TAG, "Invalid component registrar.", ex);
+            }
           }
-        } catch (InvalidRegistrarException ex) {
-          iterator.remove();
-          Log.w(ComponentDiscovery.TAG, "Invalid component registrar.", ex);
+        } finally {
+          Trace.endSection();
         }
+
+        try {
+          Trace.beginSection("cycleDetection");
+          if (components.isEmpty()) {
+            CycleDetector.detect(componentsToAdd);
+          } else {
+            ArrayList<Component<?>> allComponents = new ArrayList<>(this.components.keySet());
+            allComponents.addAll(componentsToAdd);
+            CycleDetector.detect(allComponents);
+          }
+        } finally {
+          Trace.endSection();
+        }
+
+        for (Component<?> component : componentsToAdd) {
+          Lazy<?> lazy =
+              new Lazy<>(
+                  () -> {
+                    if(Trace.isEnabled()) {
+                      Trace.beginSection(component.getProvidedInterfaces().iterator().next().getSimpleName() + "_init");
+                    }
+                    try {
+                      return component
+                              .getFactory()
+                              .create(new RestrictedComponentContainer(component, this));
+                    } finally {
+                      Trace.endSection();
+                    }
+                    });
+
+          components.put(component, lazy);
+        }
+
+        runAfterDiscovery.addAll(processInstanceComponents(componentsToAdd));
+        runAfterDiscovery.addAll(processSetComponents());
+        if (Trace.isEnabled()) {
+          Trace.beginSection("processDependencies" + i);
+        }
+        processDependencies();
       }
-
-      if (components.isEmpty()) {
-        CycleDetector.detect(componentsToAdd);
-      } else {
-        ArrayList<Component<?>> allComponents = new ArrayList<>(this.components.keySet());
-        allComponents.addAll(componentsToAdd);
-        CycleDetector.detect(allComponents);
+      Trace.beginSection("postprocessing");
+      for (Runnable runnable : runAfterDiscovery) {
+        runnable.run();
       }
-
-      for (Component<?> component : componentsToAdd) {
-        Lazy<?> lazy =
-            new Lazy<>(
-                () ->
-                    component
-                        .getFactory()
-                        .create(new RestrictedComponentContainer(component, this)));
-
-        components.put(component, lazy);
-      }
-
-      runAfterDiscovery.addAll(processInstanceComponents(componentsToAdd));
-      runAfterDiscovery.addAll(processSetComponents());
-      processDependencies();
+      Trace.endSection();
+      maybeInitializeEagerComponents();
+    } finally {
+      Trace.endSection();
     }
-    for (Runnable runnable : runAfterDiscovery) {
-      runnable.run();
-    }
-    maybeInitializeEagerComponents();
   }
 
   private void maybeInitializeEagerComponents() {
@@ -283,16 +313,21 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
 
   private void doInitializeEagerComponents(
       Map<Component<?>, Provider<?>> componentsToInitialize, boolean isDefaultApp) {
-    for (Map.Entry<Component<?>, Provider<?>> entry : componentsToInitialize.entrySet()) {
-      Component<?> component = entry.getKey();
-      Provider<?> provider = entry.getValue();
+    Trace.beginSection("initializeEagerComponents");
+    try {
+      for (Map.Entry<Component<?>, Provider<?>> entry : componentsToInitialize.entrySet()) {
+        Component<?> component = entry.getKey();
+        Provider<?> provider = entry.getValue();
 
-      if (component.isAlwaysEager() || (component.isEagerInDefaultApp() && isDefaultApp)) {
-        provider.get();
+        if (component.isAlwaysEager() || (component.isEagerInDefaultApp() && isDefaultApp)) {
+            provider.get();
+        }
       }
-    }
 
-    eventBus.enablePublishingAndFlushPending();
+      eventBus.enablePublishingAndFlushPending();
+    } finally {
+      Trace.endSection();
+    }
   }
 
   @Override

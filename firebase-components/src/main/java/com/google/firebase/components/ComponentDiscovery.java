@@ -23,6 +23,7 @@ import android.os.Bundle;
 import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import androidx.tracing.Trace;
 import com.google.firebase.inject.Provider;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -107,15 +108,20 @@ public final class ComponentDiscovery<T> {
    *   <li>If the registrar's constructor fails, will throw {@link InvalidRegistrarException}.
    */
   public List<Provider<ComponentRegistrar>> discoverLazy() {
+    Trace.beginSection("discoverFirebaseComponents");
     List<Provider<ComponentRegistrar>> result = new ArrayList<>();
     for (String registrarName : retriever.retrieve(context)) {
       result.add(() -> instantiate(registrarName));
     }
+    Trace.endSection();
     return result;
   }
 
   @Nullable
   private static ComponentRegistrar instantiate(String registrarName) {
+    if (Trace.isEnabled()) {
+      Trace.beginSection("instantiate_" + registrarName);
+    }
     try {
       Class<?> loadedClass = Class.forName(registrarName);
       if (!ComponentRegistrar.class.isAssignableFrom(loadedClass)) {
@@ -140,6 +146,8 @@ public final class ComponentDiscovery<T> {
     } catch (InvocationTargetException e) {
       throw new InvalidRegistrarException(
           String.format("Could not instantiate %s", registrarName), e);
+    } finally {
+      Trace.endSection();
     }
   }
 
