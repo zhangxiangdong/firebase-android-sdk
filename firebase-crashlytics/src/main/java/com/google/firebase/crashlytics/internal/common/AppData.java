@@ -17,6 +17,7 @@ package com.google.firebase.crashlytics.internal.common;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
 import com.google.firebase.crashlytics.internal.unity.UnityVersionProvider;
 
 /** Carries static information about the app. */
@@ -31,13 +32,15 @@ public class AppData {
   public final String versionName;
 
   public final UnityVersionProvider unityVersionProvider;
+  public final FlutterStateProvider flutterStateProvider;
 
   public static AppData create(
       Context context,
       IdManager idManager,
       String googleAppId,
       String buildId,
-      UnityVersionProvider unityVersionProvider)
+      UnityVersionProvider unityVersionProvider,
+      FlutterStateProvider flutterStateProvider)
       throws PackageManager.NameNotFoundException {
     final String packageName = context.getPackageName();
     final String installerPackageName = idManager.getInstallerPackageName();
@@ -54,7 +57,8 @@ public class AppData {
         packageName,
         versionCode,
         versionName,
-        unityVersionProvider);
+        unityVersionProvider,
+        flutterStateProvider);
   }
 
   public AppData(
@@ -64,7 +68,8 @@ public class AppData {
       String packageName,
       String versionCode,
       String versionName,
-      UnityVersionProvider unityVersionProvider) {
+      UnityVersionProvider unityVersionProvider,
+      FlutterStateProvider flutterStateProvider) {
     this.googleAppId = googleAppId;
     this.buildId = buildId;
     this.installerPackageName = installerPackageName;
@@ -72,5 +77,6 @@ public class AppData {
     this.versionCode = versionCode;
     this.versionName = versionName;
     this.unityVersionProvider = unityVersionProvider;
+    this.flutterStateProvider = flutterStateProvider;
   }
 }

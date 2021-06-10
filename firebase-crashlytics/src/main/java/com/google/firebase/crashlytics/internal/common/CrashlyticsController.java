@@ -29,6 +29,7 @@ import com.google.firebase.crashlytics.internal.CrashlyticsNativeComponent;
 import com.google.firebase.crashlytics.internal.Logger;
 import com.google.firebase.crashlytics.internal.NativeSessionFileProvider;
 import com.google.firebase.crashlytics.internal.analytics.AnalyticsEventLogger;
+import com.google.firebase.crashlytics.internal.flutter.FlutterState;
 import com.google.firebase.crashlytics.internal.log.LogFileManager;
 import com.google.firebase.crashlytics.internal.persistence.FileStore;
 import com.google.firebase.crashlytics.internal.settings.SettingsDataProvider;
@@ -79,6 +80,7 @@ class CrashlyticsController {
   private final LogFileManager logFileManager;
   private final CrashlyticsNativeComponent nativeComponent;
   private final String unityVersion;
+  private final FlutterState flutterState;
   private final AnalyticsEventLogger analyticsEventLogger;
   private final SessionReportingCoordinator reportingCoordinator;
 
@@ -127,8 +129,19 @@ class CrashlyticsController {
     this.nativeComponent = nativeComponent;
     this.unityVersion = appData.unityVersionProvider.getUnityVersion();
     this.analyticsEventLogger = analyticsEventLogger;
+    this.flutterState = appData.flutterStateProvider.getFlutterState();
 
     this.reportingCoordinator = sessionReportingCoordinator;
+
+    Logger.getLogger().d("FLUTTERSTATE=" + this.flutterState);
+
+    // Logger.getLogger().d("CHECK HAS FLUTTER");
+    // // hasFlutter2();
+    // hasFlutter3();
+    // // boolean hasFlutter = hasFlutter();
+    // hasFlutter4();
+    // Logger.getLogger().d("JAVA_LIB_PATH: " + System.getProperty("java.library.path"));
+    // Logger.getLogger().d("DONE CHECK HAS FLUTTER");
   }
 
   private Context getContext() {
@@ -136,6 +149,141 @@ class CrashlyticsController {
   }
 
   // region Exception handling
+
+  // private void hasFlutter3() {
+  //   Logger.getLogger().d("AAA");
+  //   System.loadLibrary("flutter");
+  //   Logger.getLogger().d("BBB");
+  //   Logger.getLogger().d(System.mapLibraryName("flutter"));
+  //   // System.loadLibrary("fluttera");
+  //   Logger.getLogger().d("CCC");
+  //   // Runtime.getRuntime().loadLibrary();
+  // }
+  //
+  // private void hasFlutter4() {
+  //   ClassLoader loader = this.getClass().getClassLoader();
+  //   try {
+  //     Class<?> clazz = loader.getClass();
+  //     Method method = null;
+  //     while (clazz != null) {
+  //       Logger.getLogger().d(clazz.getName());
+  //       Method[] methods = clazz.getDeclaredMethods();
+  //       for (Method m : methods) {
+  //         if (m.getName().equals("findLibrary")) {
+  //           method = m;
+  //         }
+  //       }
+  //       clazz = clazz.getSuperclass();
+  //     }
+  //     if (method == null) {
+  //       // Shouldn't be possible
+  //       Logger.getLogger().d("NO FIND_LIBRARY");
+  //     }
+  //     // Logger.getLogger().d("LOADER: " + loader.getClass().getName());
+  //     // Method method = loader.getClass().getDeclaredMethod("findLibrary");
+  //     method.setAccessible(true);
+  //     // String filename = (String) method.invoke(loader, "libflutter.so"); // null
+  //     // String filename = (String) method.invoke(loader, "libflutter"); // null
+  //     // Logger.getLogger().d("FILENAME: " + filename);
+  //     // return filename != null && !filename.isEmpty();
+  //
+  //     Logger.getLogger().d("A: " + method.invoke(loader, "/system/lib/libflutter.so"));
+  //     Logger.getLogger().d("B: " + method.invoke(loader, "/system_ext/lib/libflutter.so"));
+  //     Logger.getLogger().d("C: " + method.invoke(loader, "/lib/x86/libflutter.so"));
+  //     Logger.getLogger().d("D: " + method.invoke(loader, "/lib/x86_64/libflutter.so"));
+  //     Logger.getLogger().d("E: " + method.invoke(loader, "flutter"));
+  //
+  //
+  //     // return false;
+  //   } catch (Exception e) {
+  //     Logger.getLogger().d("FAILED TO RUN FIND_LIBRARY", e);
+  //     // return false;
+  //   }
+  //   // return false;
+  // }
+  //
+  // private void hasFlutter2() {
+  //   Logger.getLogger().d("START");
+  //   Writer w = new Writer() {
+  //
+  //     @Override
+  //     public void write(char[] cbuf, int off, int len) throws IOException {
+  //       Logger.getLogger().d(String.copyValueOf(cbuf));
+  //     }
+  //
+  //     @Override
+  //     public void flush() throws IOException {
+  //
+  //     }
+  //
+  //     @Override
+  //     public void close() throws IOException {
+  //
+  //     }
+  //   };
+  //   PrintWriter pw = new PrintWriter(w);
+  //   System.getProperties().list(pw);
+  //   Logger.getLogger().d("END");
+  // }
+  //
+  // private boolean hasFlutter() {
+  //   // ClassLoader.getSystemClassLoader()
+  //   // System.mapLibraryName()
+  //   // Method method = object.getClass().getDeclaredMethod(methodName);
+  //   // method.setAccessible(true);
+  //   // Object r = method.invoke(object);
+  //   // ClassLoader.class.getDeclaredMetho("loadedLibraryNames");
+  //   // Class<?> clazz = plugin.getClass();
+  //   // while (clazz != null) {
+  //   //   Method[] methods = clazz.getDeclaredMethods();
+  //   //   for (Method method : methods) {
+  //   //     // Test any other things about it beyond the name...
+  //   //     if (method.getName().equals("getFile") && ...) {
+  //   //       return method;
+  //   //     }
+  //   //   }
+  //   //   clazz = clazz.getSuperclass();
+  //   // }
+  //   ClassLoader loader = ClassLoader.getSystemClassLoader();
+  //   try {
+  //     Class<?> clazz = loader.getClass();
+  //     Method method = null;
+  //     while (clazz != null) {
+  //       Logger.getLogger().d(clazz.getName());
+  //       Method[] methods = clazz.getDeclaredMethods();
+  //       for (Method m : methods) {
+  //         if (m.getName().equals("findLibrary")) {
+  //           method = m;
+  //         }
+  //       }
+  //       clazz = clazz.getSuperclass();
+  //     }
+  //     if (method == null) {
+  //       // Shouldn't be possible
+  //       Logger.getLogger().d("NO FIND_LIBRARY");
+  //     }
+  //     // Logger.getLogger().d("LOADER: " + loader.getClass().getName());
+  //     // Method method = loader.getClass().getDeclaredMethod("findLibrary");
+  //     method.setAccessible(true);
+  //     // String filename = (String) method.invoke(loader, "libflutter.so"); // null
+  //     // String filename = (String) method.invoke(loader, "libflutter"); // null
+  //     // Logger.getLogger().d("FILENAME: " + filename);
+  //     // return filename != null && !filename.isEmpty();
+  //
+  //     Logger.getLogger().d("A: " + method.invoke(loader, "/system/lib/libflutter.so"));
+  //     Logger.getLogger().d("B: " + method.invoke(loader, "/system_ext/lib/libflutter.so"));
+  //     Logger.getLogger().d("C: " + method.invoke(loader, "/lib/x86/libflutter.so"));
+  //     Logger.getLogger().d("D: " + method.invoke(loader, "/lib/x86_64/libflutter.so"));
+  //     Logger.getLogger().d("E: " + method.invoke(loader, "flutter"));
+  //
+  //
+  //     return false;
+  //   } catch (Exception e) {
+  //     Logger.getLogger().d("FAILED TO RUN FIND_LIBRARY", e);
+  //     // return false;
+  //   }
+  //   return false;
+  // }
 
   void enableExceptionHandling(
       Thread.UncaughtExceptionHandler defaultHandler, SettingsDataProvider settingsProvider) {

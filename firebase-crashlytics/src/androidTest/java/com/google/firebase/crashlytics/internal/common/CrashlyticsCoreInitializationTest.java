@@ -31,6 +31,8 @@ import com.google.firebase.crashlytics.internal.CrashlyticsTestCase;
 import com.google.firebase.crashlytics.internal.ProviderProxyNativeComponent;
 import com.google.firebase.crashlytics.internal.analytics.UnavailableAnalyticsEventLogger;
 import com.google.firebase.crashlytics.internal.breadcrumbs.DisabledBreadcrumbSource;
+import com.google.firebase.crashlytics.internal.flutter.FlutterState;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
 import com.google.firebase.crashlytics.internal.persistence.FileStore;
 import com.google.firebase.crashlytics.internal.persistence.FileStoreImpl;
 import com.google.firebase.crashlytics.internal.settings.SettingsController;
@@ -262,6 +264,9 @@ public class CrashlyticsCoreInitializationTest extends CrashlyticsTestCase {
     final UnityVersionProvider unityVersionProvider = mock(UnityVersionProvider.class);
     when(unityVersionProvider.getUnityVersion()).thenReturn("1.0");
 
+    final FlutterStateProvider flutterStateProvider = mock(FlutterStateProvider.class);
+    when(flutterStateProvider.getFlutterState()).thenReturn(FlutterState.UNKNOWN);
+
     appData =
         new AppData(
             GOOGLE_APP_ID,
@@ -270,7 +275,8 @@ public class CrashlyticsCoreInitializationTest extends CrashlyticsTestCase {
             "packageName",
             "versionCode",
             "versionName",
-            unityVersionProvider);
+            unityVersionProvider,
+            flutterStateProvider);
   }
 
   private void setupResource(Integer resId, String type, String name, String value) {

@@ -32,6 +32,8 @@ import com.google.firebase.crashlytics.internal.common.CrashlyticsCore;
 import com.google.firebase.crashlytics.internal.common.DataCollectionArbiter;
 import com.google.firebase.crashlytics.internal.common.ExecutorUtils;
 import com.google.firebase.crashlytics.internal.common.IdManager;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProviderImpl;
 import com.google.firebase.crashlytics.internal.network.HttpRequestFactory;
 import com.google.firebase.crashlytics.internal.settings.SettingsController;
 import com.google.firebase.crashlytics.internal.unity.ResourceUnityVersionProvider;
@@ -99,11 +101,18 @@ public class FirebaseCrashlytics {
     Logger.getLogger().d("Mapping file ID is: " + mappingFileId);
 
     final UnityVersionProvider unityVersionProvider = new ResourceUnityVersionProvider(context);
+    final FlutterStateProvider flutterStateProvider = new FlutterStateProviderImpl();
 
     AppData appData;
     try {
       appData =
-          AppData.create(context, idManager, googleAppId, mappingFileId, unityVersionProvider);
+          AppData.create(
+              context,
+              idManager,
+              googleAppId,
+              mappingFileId,
+              unityVersionProvider,
+              flutterStateProvider);
     } catch (PackageManager.NameNotFoundException e) {
       Logger.getLogger().e("Error retrieving app package info.", e);
       return null;

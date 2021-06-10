@@ -28,6 +28,8 @@ import com.google.firebase.crashlytics.internal.CrashlyticsTestCase;
 import com.google.firebase.crashlytics.internal.NativeSessionFileProvider;
 import com.google.firebase.crashlytics.internal.ProviderProxyNativeComponent;
 import com.google.firebase.crashlytics.internal.analytics.AnalyticsEventLogger;
+import com.google.firebase.crashlytics.internal.flutter.FlutterState;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
 import com.google.firebase.crashlytics.internal.log.LogFileManager;
 import com.google.firebase.crashlytics.internal.persistence.FileStore;
 import com.google.firebase.crashlytics.internal.settings.SettingsDataProvider;
@@ -110,6 +112,7 @@ public class CrashlyticsControllerTest extends CrashlyticsTestCase {
     private DataCollectionArbiter dataCollectionArbiter;
     private CrashlyticsNativeComponent nativeComponent;
     private UnityVersionProvider unityVersionProvider;
+    private FlutterStateProvider flutterStateProvider;
     private AnalyticsEventLogger analyticsEventLogger;
     private SessionReportingCoordinator sessionReportingCoordinator;
     private LogFileManager.DirectoryProvider logFileDirectoryProvider = null;
@@ -121,6 +124,9 @@ public class CrashlyticsControllerTest extends CrashlyticsTestCase {
 
       unityVersionProvider = mock(UnityVersionProvider.class);
       when(unityVersionProvider.getUnityVersion()).thenReturn(null);
+
+      flutterStateProvider = mock(FlutterStateProvider.class);
+      when(flutterStateProvider.getFlutterState()).thenReturn(FlutterState.UNKNOWN);
 
       analyticsEventLogger = mock(AnalyticsEventLogger.class);
 
@@ -166,7 +172,8 @@ public class CrashlyticsControllerTest extends CrashlyticsTestCase {
               "packageName",
               "versionCode",
               "versionName",
-              unityVersionProvider);
+              unityVersionProvider,
+              flutterStateProvider);
 
       final CrashlyticsController controller =
           new CrashlyticsController(

@@ -33,6 +33,8 @@ import com.google.firebase.crashlytics.internal.analytics.UnavailableAnalyticsEv
 import com.google.firebase.crashlytics.internal.breadcrumbs.BreadcrumbHandler;
 import com.google.firebase.crashlytics.internal.breadcrumbs.BreadcrumbSource;
 import com.google.firebase.crashlytics.internal.breadcrumbs.DisabledBreadcrumbSource;
+import com.google.firebase.crashlytics.internal.flutter.FlutterState;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
 import com.google.firebase.crashlytics.internal.settings.SettingsController;
 import com.google.firebase.crashlytics.internal.settings.TestSettingsData;
 import com.google.firebase.crashlytics.internal.settings.model.SettingsData;
@@ -327,6 +329,9 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
     final UnityVersionProvider unityVersionProvider = mock(UnityVersionProvider.class);
     when(unityVersionProvider.getUnityVersion()).thenReturn("1.0");
 
+    final FlutterStateProvider flutterStateProvider = mock(FlutterStateProvider.class);
+    when(flutterStateProvider.getFlutterState()).thenReturn(FlutterState.UNKNOWN);
+
     AppData appData =
         new AppData(
             GOOGLE_APP_ID,
@@ -335,7 +340,8 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
             "packageName",
             "versionCode",
             "versionName",
-            unityVersionProvider);
+            unityVersionProvider,
+            flutterStateProvider);
 
     crashlyticsCore.onPreExecute(appData, mockSettingsController);
 

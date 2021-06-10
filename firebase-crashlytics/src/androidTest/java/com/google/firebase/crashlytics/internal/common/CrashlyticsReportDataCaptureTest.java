@@ -29,6 +29,7 @@ import android.os.BatteryManager;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.crashlytics.internal.flutter.FlutterStateProvider;
 import com.google.firebase.crashlytics.internal.model.CrashlyticsReport;
 import com.google.firebase.crashlytics.internal.model.CrashlyticsReport.Session.Event.Application.Execution;
 import com.google.firebase.crashlytics.internal.stacktrace.StackTraceTrimmingStrategy;
@@ -52,6 +53,8 @@ public class CrashlyticsReportDataCaptureTest {
 
   @Mock private UnityVersionProvider unityVersionProvider;
 
+  @Mock private FlutterStateProvider flutterStateProvider;
+
   @Mock private StackTraceTrimmingStrategy stackTraceTrimmingStrategy;
 
   @Mock private FirebaseInstallationsApi installationsApiMock;
@@ -70,7 +73,13 @@ public class CrashlyticsReportDataCaptureTest {
             installationsApiMock,
             DataCollectionArbiterTest.MOCK_ARBITER_ENABLED);
     final AppData appData =
-        AppData.create(context, idManager, "googleAppId", "buildId", unityVersionProvider);
+        AppData.create(
+            context,
+            idManager,
+            "googleAppId",
+            "buildId",
+            unityVersionProvider,
+            flutterStateProvider);
     dataCapture =
         new CrashlyticsReportDataCapture(context, idManager, appData, stackTraceTrimmingStrategy);
     timestamp = System.currentTimeMillis();
