@@ -133,12 +133,21 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     return Tasks.forResult(null);
   }
 
-  private boolean supportsCustomTabs(Activity activity) {
+  private boolean supportsCustomTabs(Context context) {
     Intent customTabIntent = new Intent("android.support.customtabs.action.CustomTabsService");
     customTabIntent.setPackage("com.android.chrome");
     List<ResolveInfo> resolveInfos =
-            activity.getPackageManager().queryIntentServices(customTabIntent, 0);
+            context.getPackageManager().queryIntentServices(customTabIntent, 0);
     return resolveInfos != null && !resolveInfos.isEmpty();
+  }
+
+  public static String getApplicationName(Context context) {
+    try {
+      return context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
+    } catch (Exception e){
+      Log.e(TAG, "Unable to retrieve App name");
+      return "";
+    }
   }
 
   /** Signs in the App Distribution tester. Presents the tester with a Google sign in UI */
@@ -155,7 +164,31 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
       public void onClick(DialogInterface dialogInterface, int i) {
         firebaseInstallationsApi.getId().addOnSuccessListener(new OnSuccessListener<String>() {
           @Override
-          public void onSuccess(String s) {
+          public void onSuccess(String fid) {
+
+            Uri uri = Uri.parse(String.format("https://appdistribution.firebase.dev/nba/pub/apps/" +
+                            "%s/installations/%s/buildalerts?appName=%s",
+                    firebaseApp.getOptions().getApplicationId(), fid, getApplicationName(context)));
+
+            if (supportsCustomTabs(context)) {
+              // If we can launch a chrome view, try that.
+              Log.v("test", "custom tab supported");
+              CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
+              Intent intent = customTabsIntent.intent;
+              intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+              customTabsIntent.launchUrl(currentActivity, uri);
+            } else {
+              // If we can't launch a chrome view try to launch anything that can handle a URL.
+              Log.v("test", "custom tab not supported");
+              Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
+              ResolveInfo info = currentActivity.getPackageManager().resolveActivity(browserIntent, 0);
+              browserIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+              browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+              currentActivity.startActivity(browserIntent);
+            }
+
+
             taskCompletionSource.setResult(null);
           }
         }).addOnFailureListener(new OnFailureListener() {
