@@ -35,6 +35,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.installations.FirebaseInstallationsApi;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,12 +45,15 @@ import java.util.List;
 public class FirebaseAppDistribution implements Application.ActivityLifecycleCallbacks{
 
   private final FirebaseApp firebaseApp;
+  private final FirebaseInstallationsApi firebaseInstallationsApi;
   private static final String TAG = "FirebaseAppDistribution";
   private Activity currentActivity;
 
   /** Constructor for FirebaseAppDistribution */
-  public FirebaseAppDistribution(FirebaseApp firebaseApp) {
+  public FirebaseAppDistribution(FirebaseApp firebaseApp,
+                                 FirebaseInstallationsApi firebaseInstallationsApi) {
     this.firebaseApp = firebaseApp;
+    this.firebaseInstallationsApi = firebaseInstallationsApi;
   }
 
   /** @return a FirebaseAppDistribution instance */
@@ -149,7 +153,18 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, context.getString(R.string.singin_yes_button), new DialogInterface.OnClickListener() {
       @Override
       public void onClick(DialogInterface dialogInterface, int i) {
-        taskCompletionSource.setResult(null);
+        firebaseInstallationsApi.getId().addOnSuccessListener(new OnSuccessListener<String>() {
+          @Override
+          public void onSuccess(String s) {
+            taskCompletionSource.setResult(null);
+          }
+        }).addOnFailureListener(new OnFailureListener() {
+          @Override
+          public void onFailure(@NonNull @NotNull Exception e) {
+            taskCompletionSource.setException(new FirebaseAppDistributionException(
+                    FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
+          }
+        });
       }
     });
     alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, context.getString(R.string.singin_no_button), new DialogInterface.OnClickListener() {
@@ -160,7 +175,10 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
         dialogInterface.dismiss();
       }
     });
+
     alertDialog.show();
+
+
 
     return taskCompletionSource.getTask();
   }
