@@ -21,7 +21,21 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Possible exceptions thrown in FirebaseAppDistribution */
-public abstract class FirebaseAppDistributionException extends FirebaseException {
+public class FirebaseAppDistributionException extends FirebaseException {
+
+  private final int code;
+  private final AppDistributionRelease release;
+
+
+  public FirebaseAppDistributionException(int code, AppDistributionRelease release) {
+    this.code = code;
+    this.release = release;
+  }
+
+  public FirebaseAppDistributionException(int code) {
+    this(code, null);
+  }
+
   /** Unknown error. */
   public static final int UNKNOWN_ERROR = 1;
 
@@ -56,11 +70,15 @@ public abstract class FirebaseAppDistributionException extends FirebaseException
   public static final int RELEASE_URL_EXPIRED_ERROR = 11;
 
   /** Get error code */
-  public abstract int getCode();
+  public int getCode() {
+    return this.code;
+  };
 
   /** Get cached release when error was thrown */
   @NonNull
-  public abstract AppDistributionRelease getRelease();
+  public AppDistributionRelease getRelease() {
+    return this.release;
+  };
 
   /** The set of FirebaseAppDistribution status codes. */
   @IntDef({

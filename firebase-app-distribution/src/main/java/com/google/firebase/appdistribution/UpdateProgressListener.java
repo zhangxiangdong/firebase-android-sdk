@@ -21,7 +21,7 @@ public interface UpdateProgressListener {
   /**
    * Method invoked during updating to track progress by modifying UpdateProgress object
    *
-   * @param UpdateProgress object to be modified
+   * @param updateProgress object to be modified
    */
   public void onProgressUpdate(@NonNull UpdateProgress updateProgress);
 }

@@ -42,4 +42,5 @@ dependencies {
     implementation project(path: ':firebase-components')
     implementation 'com.google.android.gms:play-services-tasks:17.0.0'
     implementation project(path: ':firebase-common')
+    implementation 'com.android.support:customtabs:28.0.0'
 }
