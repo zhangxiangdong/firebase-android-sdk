@@ -17,7 +17,10 @@ package com.google.firebase.appdistribution;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.customtabs.CustomTabsIntent;
@@ -26,6 +29,8 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.common.internal.Preconditions;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
@@ -33,6 +38,8 @@ import com.google.firebase.FirebaseApp;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public class FirebaseAppDistribution implements Application.ActivityLifecycleCallbacks{
 
@@ -64,6 +71,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   }
 
 
+
+
   /**
    * Updates the app to the latest release, if one is available. Returns the release information or
    * null if no update is found. Performs the following actions: 1. If tester is not signed in,
@@ -79,24 +88,19 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
 
     TaskCompletionSource<AppDistributionRelease> taskCompletionSource = new TaskCompletionSource<>();
 
-    AlertDialog alertDialog = new AlertDialog.Builder(currentActivity).create();
-    alertDialog.setTitle("Get New Build Alerts");
-    alertDialog.setMessage("Do you want to sign-in for new build alerts?");
-    alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Sign-in", new DialogInterface.OnClickListener() {
+    Task<Void> signInTask = signInTester();
+
+    signInTask.addOnSuccessListener(new OnSuccessListener<Void>() {
       @Override
-      public void onClick(DialogInterface dialogInterface, int i) {
+      public void onSuccess(Void unused) {
         taskCompletionSource.setResult(null);
       }
-    });
-    alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
+    }).addOnFailureListener(new OnFailureListener() {
       @Override
-      public void onClick(DialogInterface dialogInterface, int i) {
-        taskCompletionSource.setException(new FirebaseAppDistributionException(
-                FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
-        dialogInterface.dismiss();
+      public void onFailure(@NonNull @NotNull Exception e) {
+        taskCompletionSource.setException(e);
       }
     });
-    alertDialog.show();
 
     return taskCompletionSource.getTask();
   }
@@ -125,10 +129,40 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     return Tasks.forResult(null);
   }
 
+  private boolean supportsCustomTabs(Activity activity) {
+    Intent customTabIntent = new Intent("android.support.customtabs.action.CustomTabsService");
+    customTabIntent.setPackage("com.android.chrome");
+    List<ResolveInfo> resolveInfos =
+            activity.getPackageManager().queryIntentServices(customTabIntent, 0);
+    return resolveInfos != null && !resolveInfos.isEmpty();
+  }
+
   /** Signs in the App Distribution tester. Presents the tester with a Google sign in UI */
   @NonNull
   public Task<Void> signInTester() {
-    return Tasks.forResult(null);
+    TaskCompletionSource<Void> taskCompletionSource = new TaskCompletionSource<>();
+
+    Context context = firebaseApp.getApplicationContext();
+    AlertDialog alertDialog = new AlertDialog.Builder(currentActivity).create();
+    alertDialog.setTitle(context.getString(R.string.signin_dialog_title));
+    alertDialog.setMessage(context.getString(R.string.singin_dialog_message));
+    alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, context.getString(R.string.singin_yes_button), new DialogInterface.OnClickListener() {
+      @Override
+      public void onClick(DialogInterface dialogInterface, int i) {
+        taskCompletionSource.setResult(null);
+      }
+    });
+    alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, context.getString(R.string.singin_no_button), new DialogInterface.OnClickListener() {
+      @Override
+      public void onClick(DialogInterface dialogInterface, int i) {
+        taskCompletionSource.setException(new FirebaseAppDistributionException(
+                FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
+        dialogInterface.dismiss();
+      }
+    });
+    alertDialog.show();
+
+    return taskCompletionSource.getTask();
   }
 
   /** Returns true if the App Distribution tester is signed in */
