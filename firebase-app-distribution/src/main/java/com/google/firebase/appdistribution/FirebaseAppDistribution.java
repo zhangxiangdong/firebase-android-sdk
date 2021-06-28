@@ -45,6 +45,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   private static final String TAG = "FirebaseAppDistribution";
   private Activity currentActivity;
 
+
   /** Constructor for FirebaseAppDistribution */
   public FirebaseAppDistribution(
       FirebaseApp firebaseApp, FirebaseInstallationsApi firebaseInstallationsApi) {
@@ -87,6 +88,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
         new TaskCompletionSource<>();
 
     Task<Void> signInTask = signInTester();
+
 
     signInTask
         .addOnSuccessListener(
@@ -151,7 +153,6 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   private void openSignIn(Uri uri) {
     if(supportsCustomTabs(firebaseApp.getApplicationContext())) {
       // If we can launch a chrome view, try that.
-      Log.v("test", "custom tab supported");
       CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
 
       builder.setStartAnimations(currentActivity.getApplicationContext(),
@@ -164,17 +165,21 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
       Intent intent = customTabsIntent.intent;
       intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
       customTabsIntent.launchUrl(currentActivity, uri);
+
     } else {
       // If we can't launch a chrome view try to launch anything that can handle a URL.
-      Log.v("test", "custom tab not supported");
       Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
       ResolveInfo info = currentActivity.getPackageManager().resolveActivity(browserIntent, 0);
       browserIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
       browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
       currentActivity.startActivity(browserIntent);
     }
+
   }
+
+
 
   /** Signs in the App Distribution tester. Presents the tester with a Google sign in UI */
   @NonNull
@@ -208,6 +213,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
                                     fid,
                                     getApplicationName(context)));
 
+                        Log.v("FAD Url", uri.toString());
+                        Log.v("FirebaseApp name", firebaseApp.getName());
                         openSignIn(uri);
 
                         taskCompletionSource.setResult(null);
@@ -287,6 +294,9 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   @Override
   public void onActivityDestroyed(@NonNull @NotNull Activity activity) {
     Log.d(TAG, "Destroyed activity: " + activity.getClass().getName());
-    this.currentActivity = null;
+    //destroyed comes after resumed
+    if (this.currentActivity == activity){
+      this.currentActivity = null;
+    }
   }
 }
