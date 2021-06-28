@@ -32,9 +32,11 @@ public class FirebaseAppDistributionRegistrar implements ComponentRegistrar {
     return Arrays.asList(
         Component.builder(FirebaseAppDistribution.class)
             .add(Dependency.required(FirebaseApp.class))
-                .add(Dependency.required(FirebaseInstallationsApi.class))
-            .factory(c -> new FirebaseAppDistribution(
-                    c.get(FirebaseApp.class), c.get(FirebaseInstallationsApi.class)))
+            .add(Dependency.required(FirebaseInstallationsApi.class))
+            .factory(
+                c ->
+                    new FirebaseAppDistribution(
+                        c.get(FirebaseApp.class), c.get(FirebaseInstallationsApi.class)))
             .build(),
         LibraryVersionComponent.create("fire-app-distribution", BuildConfig.VERSION_NAME));
   }

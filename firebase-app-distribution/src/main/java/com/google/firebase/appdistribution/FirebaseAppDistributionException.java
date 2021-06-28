@@ -26,7 +26,6 @@ public class FirebaseAppDistributionException extends FirebaseException {
   private final int code;
   private final AppDistributionRelease release;
 
-
   public FirebaseAppDistributionException(int code, AppDistributionRelease release) {
     this.code = code;
     this.release = release;
@@ -72,13 +71,15 @@ public class FirebaseAppDistributionException extends FirebaseException {
   /** Get error code */
   public int getCode() {
     return this.code;
-  };
+  }
+  ;
 
   /** Get cached release when error was thrown */
   @NonNull
   public AppDistributionRelease getRelease() {
     return this.release;
-  };
+  }
+  ;
 
   /** The set of FirebaseAppDistribution status codes. */
   @IntDef({

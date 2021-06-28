@@ -25,9 +25,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.customtabs.CustomTabsIntent;
 import android.util.Log;
-
 import androidx.annotation.NonNull;
-
 import com.google.android.gms.common.internal.Preconditions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -36,13 +34,11 @@ import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.installations.FirebaseInstallationsApi;
-
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-
-public class FirebaseAppDistribution implements Application.ActivityLifecycleCallbacks{
+public class FirebaseAppDistribution implements Application.ActivityLifecycleCallbacks {
 
   private final FirebaseApp firebaseApp;
   private final FirebaseInstallationsApi firebaseInstallationsApi;
@@ -50,8 +46,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   private Activity currentActivity;
 
   /** Constructor for FirebaseAppDistribution */
-  public FirebaseAppDistribution(FirebaseApp firebaseApp,
-                                 FirebaseInstallationsApi firebaseInstallationsApi) {
+  public FirebaseAppDistribution(
+      FirebaseApp firebaseApp, FirebaseInstallationsApi firebaseInstallationsApi) {
     this.firebaseApp = firebaseApp;
     this.firebaseInstallationsApi = firebaseInstallationsApi;
   }
@@ -74,9 +70,6 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     return (FirebaseAppDistribution) app.get(FirebaseAppDistribution.class);
   }
 
-
-
-
   /**
    * Updates the app to the latest release, if one is available. Returns the release information or
    * null if no update is found. Performs the following actions: 1. If tester is not signed in,
@@ -90,21 +83,26 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     Log.v("updateToLatestRelease", "called");
     Log.v("updateToLatestRelease", currentActivity.getClass().getName());
 
-    TaskCompletionSource<AppDistributionRelease> taskCompletionSource = new TaskCompletionSource<>();
+    TaskCompletionSource<AppDistributionRelease> taskCompletionSource =
+        new TaskCompletionSource<>();
 
     Task<Void> signInTask = signInTester();
 
-    signInTask.addOnSuccessListener(new OnSuccessListener<Void>() {
-      @Override
-      public void onSuccess(Void unused) {
-        taskCompletionSource.setResult(null);
-      }
-    }).addOnFailureListener(new OnFailureListener() {
-      @Override
-      public void onFailure(@NonNull @NotNull Exception e) {
-        taskCompletionSource.setException(e);
-      }
-    });
+    signInTask
+        .addOnSuccessListener(
+            new OnSuccessListener<Void>() {
+              @Override
+              public void onSuccess(Void unused) {
+                taskCompletionSource.setResult(null);
+              }
+            })
+        .addOnFailureListener(
+            new OnFailureListener() {
+              @Override
+              public void onFailure(@NonNull @NotNull Exception e) {
+                taskCompletionSource.setException(e);
+              }
+            });
 
     return taskCompletionSource.getTask();
   }
@@ -125,7 +123,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
    * complete the download and installation.
    *
    * @throws FirebaseAppDistributionException with UPDATE_NOT_AVAIALBLE exception if no new release
-   * is cached from checkForUpdate
+   *     is cached from checkForUpdate
    * @param updateProgressListener a callback function invoked as the update progresses
    */
   @NonNull
@@ -137,16 +135,44 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     Intent customTabIntent = new Intent("android.support.customtabs.action.CustomTabsService");
     customTabIntent.setPackage("com.android.chrome");
     List<ResolveInfo> resolveInfos =
-            context.getPackageManager().queryIntentServices(customTabIntent, 0);
+        context.getPackageManager().queryIntentServices(customTabIntent, 0);
     return resolveInfos != null && !resolveInfos.isEmpty();
   }
 
   public static String getApplicationName(Context context) {
     try {
       return context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
-    } catch (Exception e){
+    } catch (Exception e) {
       Log.e(TAG, "Unable to retrieve App name");
       return "";
+    }
+  }
+
+  private void openSignIn(Uri uri) {
+    if(supportsCustomTabs(firebaseApp.getApplicationContext())) {
+      // If we can launch a chrome view, try that.
+      Log.v("test", "custom tab supported");
+      CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+
+      builder.setStartAnimations(currentActivity.getApplicationContext(),
+              R.anim.slide_in_right, R.anim.slide_out_left);
+
+      builder.setExitAnimations(currentActivity.getApplicationContext(),
+              R.anim.slide_in_left, R.anim.slide_out_right);
+
+      CustomTabsIntent customTabsIntent = builder.build();
+      Intent intent = customTabsIntent.intent;
+      intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      customTabsIntent.launchUrl(currentActivity, uri);
+    } else {
+      // If we can't launch a chrome view try to launch anything that can handle a URL.
+      Log.v("test", "custom tab not supported");
+      Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
+      ResolveInfo info = currentActivity.getPackageManager().resolveActivity(browserIntent, 0);
+      browserIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+      browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      currentActivity.startActivity(browserIntent);
     }
   }
 
@@ -156,62 +182,62 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     TaskCompletionSource<Void> taskCompletionSource = new TaskCompletionSource<>();
 
     Context context = firebaseApp.getApplicationContext();
+
     AlertDialog alertDialog = new AlertDialog.Builder(currentActivity).create();
     alertDialog.setTitle(context.getString(R.string.signin_dialog_title));
     alertDialog.setMessage(context.getString(R.string.singin_dialog_message));
-    alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, context.getString(R.string.singin_yes_button), new DialogInterface.OnClickListener() {
-      @Override
-      public void onClick(DialogInterface dialogInterface, int i) {
-        firebaseInstallationsApi.getId().addOnSuccessListener(new OnSuccessListener<String>() {
+    alertDialog.setButton(
+        AlertDialog.BUTTON_POSITIVE,
+        context.getString(R.string.singin_yes_button),
+        new DialogInterface.OnClickListener() {
           @Override
-          public void onSuccess(String fid) {
+          public void onClick(DialogInterface dialogInterface, int i) {
+            firebaseInstallationsApi
+                .getId()
+                .addOnSuccessListener(
+                    new OnSuccessListener<String>() {
+                      @Override
+                      public void onSuccess(String fid) {
 
-            Uri uri = Uri.parse(String.format("https://appdistribution.firebase.dev/nba/pub/apps/" +
-                            "%s/installations/%s/buildalerts?appName=%s",
-                    firebaseApp.getOptions().getApplicationId(), fid, getApplicationName(context)));
+                        Uri uri =
+                            Uri.parse(
+                                String.format(
+                                    "https://appdistribution.firebase.dev/nba/pub/apps/"
+                                        + "%s/installations/%s/buildalerts?appName=%s",
+                                    firebaseApp.getOptions().getApplicationId(),
+                                    fid,
+                                    getApplicationName(context)));
 
-            if (supportsCustomTabs(context)) {
-              // If we can launch a chrome view, try that.
-              Log.v("test", "custom tab supported");
-              CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
-              Intent intent = customTabsIntent.intent;
-              intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-              customTabsIntent.launchUrl(currentActivity, uri);
-            } else {
-              // If we can't launch a chrome view try to launch anything that can handle a URL.
-              Log.v("test", "custom tab not supported");
-              Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
-              ResolveInfo info = currentActivity.getPackageManager().resolveActivity(browserIntent, 0);
-              browserIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-              browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-              currentActivity.startActivity(browserIntent);
-            }
+                        openSignIn(uri);
 
-
-            taskCompletionSource.setResult(null);
-          }
-        }).addOnFailureListener(new OnFailureListener() {
-          @Override
-          public void onFailure(@NonNull @NotNull Exception e) {
-            taskCompletionSource.setException(new FirebaseAppDistributionException(
-                    FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
+                        taskCompletionSource.setResult(null);
+                      }
+                    })
+                .addOnFailureListener(
+                    new OnFailureListener() {
+                      @Override
+                      public void onFailure(@NonNull @NotNull Exception e) {
+                        taskCompletionSource.setException(
+                            new FirebaseAppDistributionException(
+                                FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
+                      }
+                    });
           }
         });
-      }
-    });
-    alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, context.getString(R.string.singin_no_button), new DialogInterface.OnClickListener() {
-      @Override
-      public void onClick(DialogInterface dialogInterface, int i) {
-        taskCompletionSource.setException(new FirebaseAppDistributionException(
-                FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
-        dialogInterface.dismiss();
-      }
-    });
+    alertDialog.setButton(
+        AlertDialog.BUTTON_NEGATIVE,
+        context.getString(R.string.singin_no_button),
+        new DialogInterface.OnClickListener() {
+          @Override
+          public void onClick(DialogInterface dialogInterface, int i) {
+            taskCompletionSource.setException(
+                new FirebaseAppDistributionException(
+                    FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
+            dialogInterface.dismiss();
+          }
+        });
 
     alertDialog.show();
-
-
 
     return taskCompletionSource.getTask();
   }
@@ -226,7 +252,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   public void signOutTester() {}
 
   @Override
-  public void onActivityCreated(@NonNull @NotNull Activity activity, @androidx.annotation.Nullable @Nullable Bundle bundle) {
+  public void onActivityCreated(
+      @NonNull @NotNull Activity activity, @androidx.annotation.Nullable @Nullable Bundle bundle) {
     Log.d(TAG, "Created activity: " + activity.getClass().getName());
   }
 
@@ -252,7 +279,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   }
 
   @Override
-  public void onActivitySaveInstanceState(@NonNull @NotNull Activity activity, @NonNull @NotNull Bundle bundle) {
+  public void onActivitySaveInstanceState(
+      @NonNull @NotNull Activity activity, @NonNull @NotNull Bundle bundle) {
     Log.d(TAG, "Saved activity: " + activity.getClass().getName());
   }
 
