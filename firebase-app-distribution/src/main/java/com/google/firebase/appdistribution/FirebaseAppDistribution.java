@@ -221,7 +221,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
                     new OnFailureListener() {
                       @Override
                       public void onFailure(@NonNull @NotNull Exception e) {
-                        signInTaskCompletionSource.setException(
+                        setSignInTaskCompletionError(
                             new FirebaseAppDistributionException(
                                 FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
                       }
@@ -234,7 +234,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
         new DialogInterface.OnClickListener() {
           @Override
           public void onClick(DialogInterface dialogInterface, int i) {
-            signInTaskCompletionSource.setException(
+            setSignInTaskCompletionError(
                 new FirebaseAppDistributionException(
                     FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
             dialogInterface.dismiss();
@@ -244,6 +244,12 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     alertDialog.show();
 
     return signInTaskCompletionSource.getTask();
+  }
+
+  private void setSignInTaskCompletionError(FirebaseAppDistributionException e) {
+    if (!signInTaskCompletionSource.getTask().isComplete()) {
+      this.signInTaskCompletionSource.setException(e);
+    }
   }
 
   /** Returns true if the App Distribution tester is signed in */
@@ -260,12 +266,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
       @NonNull @NotNull Activity activity, @androidx.annotation.Nullable @Nullable Bundle bundle) {
     Log.d(TAG, "Created activity: " + activity.getClass().getName());
     // if signinactivity is created, sign-in was succesful
-    if (currentlySigningIn
-        && activity
-            .getClass()
-            .getName()
-            .equals("com.google.firebase.appdistribution.SignInResultActivity")) {
-      Log.v("check", "success");
+    if (currentlySigningIn && activity instanceof SignInResultActivity) {
       currentlySigningIn = false;
       signInTaskCompletionSource.setResult(null);
     }
@@ -279,10 +280,14 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   @Override
   public void onActivityResumed(@NonNull @NotNull Activity activity) {
     Log.d(TAG, "Resumed activity: " + activity.getClass().getName());
+
+    if (activity instanceof SignInResultActivity) {
+      return;
+    }
     // throw error if app reentered during signin
     if (currentlySigningIn) {
       currentlySigningIn = false;
-      signInTaskCompletionSource.setException(
+      setSignInTaskCompletionError(
           new FirebaseAppDistributionException(
               FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
     }
