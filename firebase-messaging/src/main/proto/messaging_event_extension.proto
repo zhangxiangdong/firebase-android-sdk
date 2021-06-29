@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package firebase.messaging.reporting;
 
-option java_package = "com.google.firebase.messaging.reporting.MessagingEvent";
+option java_package = "com.google.firebase.messaging.reporting";
 option java_multiple_files = true;
 
 import "messaging_event.proto";

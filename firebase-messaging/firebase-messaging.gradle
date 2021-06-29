@@ -60,15 +60,15 @@ android {
         abortOnError false
     }
 
- //   sourceSets {
- //       main {
- //           proto {
- //               srcDir 'src/main/proto'
- //           }
- //           java {
- //           }
- //       }
- //   }
+   sourceSets {
+       main {
+           proto {
+               srcDir 'src/main/proto'
+           }
+           java {
+           }
+       }
+   }
 
     compileSdkVersion project.targetSdkVersion
     defaultConfig {
