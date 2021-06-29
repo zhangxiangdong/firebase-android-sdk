@@ -142,7 +142,7 @@ public class FirebaseMessagingService extends EnhancedIntentService {
    *     the same as the one retrieved by {@link FirebaseMessaging#getToken()}.
    */
   @WorkerThread
-  public void onNewToken(@NonNull String token) {};
+  public void onNewToken(@NonNull String token) {}
 
   /** @hide */
   @Override
