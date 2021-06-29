@@ -21,15 +21,15 @@ import android.util.Log;
 
 public class SignInResultActivity extends AppCompatActivity {
 
-    @Override
-    public void onCreate(Bundle savedInstanceBundle) {
-        super.onCreate(savedInstanceBundle);
+  @Override
+  public void onCreate(Bundle savedInstanceBundle) {
+    super.onCreate(savedInstanceBundle);
 
-        // while this does not appear to be achieving much, handling the redirect in this way
-        // ensures that we can remove the browser tab from the back stack. See the documentation
-        // on AuthorizationManagementActivity for more details.
-        Log.v("SigninActivity", "Here");
-        Intent intent = getIntent();
-        finish();
-    }
+    // while this does not appear to be achieving much, handling the redirect in this way
+    // ensures that we can remove the browser tab from the back stack. See the documentation
+    // on AuthorizationManagementActivity for more details.
+    Log.v("SigninActivity", "Here");
+    Intent intent = getIntent();
+    finish();
+  }
 }

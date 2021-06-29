@@ -44,7 +44,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   private final FirebaseInstallationsApi firebaseInstallationsApi;
   private static final String TAG = "FirebaseAppDistribution";
   private Activity currentActivity;
-
+  private boolean currentlySigningIn = false;
+  private TaskCompletionSource<Void> signInTaskCompletionSource;
 
   /** Constructor for FirebaseAppDistribution */
   public FirebaseAppDistribution(
@@ -88,7 +89,6 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
         new TaskCompletionSource<>();
 
     Task<Void> signInTask = signInTester();
-
 
     signInTask
         .addOnSuccessListener(
@@ -151,15 +151,16 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   }
 
   private void openSignIn(Uri uri) {
-    if(supportsCustomTabs(firebaseApp.getApplicationContext())) {
+    currentlySigningIn = true;
+    if (supportsCustomTabs(firebaseApp.getApplicationContext())) {
       // If we can launch a chrome view, try that.
       CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
 
-      builder.setStartAnimations(currentActivity.getApplicationContext(),
-              R.anim.slide_in_right, R.anim.slide_out_left);
+      builder.setStartAnimations(
+          currentActivity.getApplicationContext(), R.anim.slide_in_right, R.anim.slide_out_left);
 
-      builder.setExitAnimations(currentActivity.getApplicationContext(),
-              R.anim.slide_in_left, R.anim.slide_out_right);
+      builder.setExitAnimations(
+          currentActivity.getApplicationContext(), R.anim.slide_in_left, R.anim.slide_out_right);
 
       CustomTabsIntent customTabsIntent = builder.build();
       Intent intent = customTabsIntent.intent;
@@ -176,15 +177,13 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
       browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
       currentActivity.startActivity(browserIntent);
     }
-
   }
-
-
 
   /** Signs in the App Distribution tester. Presents the tester with a Google sign in UI */
   @NonNull
   public Task<Void> signInTester() {
-    TaskCompletionSource<Void> taskCompletionSource = new TaskCompletionSource<>();
+    //    TaskCompletionSource<Void> taskCompletionSource = new TaskCompletionSource<>();
+    this.signInTaskCompletionSource = new TaskCompletionSource<>();
 
     Context context = firebaseApp.getApplicationContext();
 
@@ -216,15 +215,13 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
                         Log.v("FAD Url", uri.toString());
                         Log.v("FirebaseApp name", firebaseApp.getName());
                         openSignIn(uri);
-
-                        taskCompletionSource.setResult(null);
                       }
                     })
                 .addOnFailureListener(
                     new OnFailureListener() {
                       @Override
                       public void onFailure(@NonNull @NotNull Exception e) {
-                        taskCompletionSource.setException(
+                        signInTaskCompletionSource.setException(
                             new FirebaseAppDistributionException(
                                 FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
                       }
@@ -237,7 +234,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
         new DialogInterface.OnClickListener() {
           @Override
           public void onClick(DialogInterface dialogInterface, int i) {
-            taskCompletionSource.setException(
+            signInTaskCompletionSource.setException(
                 new FirebaseAppDistributionException(
                     FirebaseAppDistributionException.AUTHENTICATION_CANCELED_ERROR));
             dialogInterface.dismiss();
@@ -246,7 +243,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
 
     alertDialog.show();
 
-    return taskCompletionSource.getTask();
+    return signInTaskCompletionSource.getTask();
   }
 
   /** Returns true if the App Distribution tester is signed in */
@@ -262,6 +259,16 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   public void onActivityCreated(
       @NonNull @NotNull Activity activity, @androidx.annotation.Nullable @Nullable Bundle bundle) {
     Log.d(TAG, "Created activity: " + activity.getClass().getName());
+    // if signinactivity is created, sign-in was succesful
+    if (currentlySigningIn
+        && activity
+            .getClass()
+            .getName()
+            .equals("com.google.firebase.appdistribution.SignInResultActivity")) {
+      Log.v("check", "success");
+      currentlySigningIn = false;
+      signInTaskCompletionSource.setResult(null);
+    }
   }
 
   @Override
@@ -272,6 +279,13 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   @Override
   public void onActivityResumed(@NonNull @NotNull Activity activity) {
     Log.d(TAG, "Resumed activity: " + activity.getClass().getName());
+    // throw error if app reentered during signin
+    if (currentlySigningIn) {
+      currentlySigningIn = false;
+      signInTaskCompletionSource.setException(
+          new FirebaseAppDistributionException(
+              FirebaseAppDistributionException.AUTHENTICATION_FAILURE_ERROR));
+    }
     this.currentActivity = activity;
   }
 
@@ -294,8 +308,8 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   @Override
   public void onActivityDestroyed(@NonNull @NotNull Activity activity) {
     Log.d(TAG, "Destroyed activity: " + activity.getClass().getName());
-    //destroyed comes after resumed
-    if (this.currentActivity == activity){
+    // destroyed comes after resumed
+    if (this.currentActivity == activity) {
       this.currentActivity = null;
     }
   }
