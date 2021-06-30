@@ -16,13 +16,14 @@ package com.google.firebase.appdistribution;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class SignInResultActivity extends AppCompatActivity {
 
   @Override
-  public void onCreate(Bundle savedInstanceBundle) {
+  public void onCreate(@NonNull Bundle savedInstanceBundle) {
     super.onCreate(savedInstanceBundle);
 
     // while this does not appear to be achieving much, handling the redirect in this way

@@ -23,9 +23,10 @@ import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.customtabs.CustomTabsIntent;
 import android.util.Log;
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
+import androidx.browser.customtabs.CustomTabsIntent;
 import com.google.android.gms.common.internal.Preconditions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -44,12 +45,13 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
   private final FirebaseInstallationsApi firebaseInstallationsApi;
   private static final String TAG = "FirebaseAppDistribution";
   private Activity currentActivity;
-  private boolean currentlySigningIn = false;
+  @VisibleForTesting private boolean currentlySigningIn = false;
   private TaskCompletionSource<Void> signInTaskCompletionSource;
 
   /** Constructor for FirebaseAppDistribution */
   public FirebaseAppDistribution(
-      FirebaseApp firebaseApp, FirebaseInstallationsApi firebaseInstallationsApi) {
+      @NonNull FirebaseApp firebaseApp,
+      @NonNull FirebaseInstallationsApi firebaseInstallationsApi) {
     this.firebaseApp = firebaseApp;
     this.firebaseInstallationsApi = firebaseInstallationsApi;
   }
@@ -141,7 +143,7 @@ public class FirebaseAppDistribution implements Application.ActivityLifecycleCal
     return resolveInfos != null && !resolveInfos.isEmpty();
   }
 
-  public static String getApplicationName(Context context) {
+  public static @NonNull String getApplicationName(@NonNull Context context) {
     try {
       return context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
     } catch (Exception e) {

@@ -26,7 +26,7 @@ public class FirebaseAppDistributionException extends FirebaseException {
   private final int code;
   private final AppDistributionRelease release;
 
-  public FirebaseAppDistributionException(int code, AppDistributionRelease release) {
+  public FirebaseAppDistributionException(int code, @NonNull AppDistributionRelease release) {
     this.code = code;
     this.release = release;
   }

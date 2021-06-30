@@ -15,6 +15,7 @@
 package com.google.firebase.appdistribution;
 
 import androidx.annotation.Keep;
+import androidx.annotation.NonNull;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.components.Component;
 import com.google.firebase.components.ComponentRegistrar;
@@ -28,7 +29,7 @@ import java.util.List;
 @Keep
 public class FirebaseAppDistributionRegistrar implements ComponentRegistrar {
   @Override
-  public List<Component<?>> getComponents() {
+  public @NonNull List<Component<?>> getComponents() {
     return Arrays.asList(
         Component.builder(FirebaseAppDistribution.class)
             .add(Dependency.required(FirebaseApp.class))
