@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package testing;
+
+option java_package = "com.google.firebase.testapps.firestore.proto";
+option java_multiple_files = true;
+
+message Test {
+  string hello = 9;
+
+  repeated SubMessage repeated_sub_message =14;
+}
+
+message SubMessage {
+  bool value = 6;
+}

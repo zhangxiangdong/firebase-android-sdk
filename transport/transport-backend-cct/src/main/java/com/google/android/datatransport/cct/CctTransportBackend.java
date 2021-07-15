@@ -22,6 +22,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.telephony.TelephonyManager;
+import android.util.Log;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.datatransport.Encoding;
@@ -366,6 +368,8 @@ final class CctTransportBackend implements TransportBackend {
         return BackendResponse.fatalError();
       }
     }
+
+    Log.d("E2E-Test", requestBody.toString());
 
     try {
       HttpResponse response =
