@@ -369,8 +369,6 @@ final class CctTransportBackend implements TransportBackend {
       }
     }
 
-    Log.d("E2E-Test", requestBody.toString());
-
     try {
       HttpResponse response =
           retry(
@@ -378,6 +376,8 @@ final class CctTransportBackend implements TransportBackend {
               new HttpRequest(actualEndPoint, requestBody, apiKey),
               this::doSend,
               (req, resp) -> {
+                Log.d("E2E-Test", req.toString());
+                Log.d("E2E-Test", resp.toString());
                 if (resp.redirectUrl != null) {
                   // retry with different url
                   Logging.d(LOG_TAG, "Following redirect to: %s", resp.redirectUrl);
@@ -419,6 +419,15 @@ final class CctTransportBackend implements TransportBackend {
       this.redirectUrl = redirectUrl;
       this.nextRequestMillis = nextRequestMillis;
     }
+
+    @Override
+    public String toString() {
+      return "HttpResponse{" +
+          "code=" + code +
+          ", redirectUrl=" + redirectUrl +
+          ", nextRequestMillis=" + nextRequestMillis +
+          '}';
+    }
   }
 
   static final class HttpRequest {
@@ -434,6 +443,15 @@ final class CctTransportBackend implements TransportBackend {
 
     HttpRequest withUrl(URL newUrl) {
       return new HttpRequest(newUrl, requestBody, apiKey);
+    }
+
+    @Override
+    public String toString() {
+      return "HttpRequest{" +
+          "url=" + url +
+          ", requestBody=" + requestBody +
+          ", apiKey='" + apiKey + '\'' +
+          '}';
     }
   }
 }

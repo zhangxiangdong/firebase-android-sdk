@@ -17,6 +17,8 @@ package com.google.android.datatransport.runtime.scheduling.jobscheduling;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.util.Log;
+
 import com.google.android.datatransport.Encoding;
 import com.google.android.datatransport.runtime.EncodedPayload;
 import com.google.android.datatransport.runtime.EventInternal;
@@ -27,6 +29,7 @@ import com.google.android.datatransport.runtime.backends.BackendResponse;
 import com.google.android.datatransport.runtime.backends.TransportBackend;
 import com.google.android.datatransport.runtime.firebase.transport.ClientMetrics;
 import com.google.android.datatransport.runtime.firebase.transport.LogEventDropped;
+import com.google.android.datatransport.runtime.firebase.transport.LogSourceMetrics;
 import com.google.android.datatransport.runtime.logging.Logging;
 import com.google.android.datatransport.runtime.scheduling.persistence.ClientHealthMetricsStore;
 import com.google.android.datatransport.runtime.scheduling.persistence.EventStore;
@@ -37,6 +40,7 @@ import com.google.android.datatransport.runtime.time.Clock;
 import com.google.android.datatransport.runtime.time.Monotonic;
 import com.google.android.datatransport.runtime.time.WallTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +114,33 @@ public class Uploader {
         });
   }
 
+  private String convertStr(ClientMetrics clientMetrics) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("\nCurrent Cache Size: ");
+    sb.append(clientMetrics.getGlobalMetrics().getStorageMetrics().getCurrentCacheSizeBytes());
+
+    sb.append("\nMax Cache Size: ");
+    sb.append(clientMetrics.getGlobalMetrics().getStorageMetrics().getMaxCacheSizeBytes());
+
+    sb.append("\nApp Namespace: ");
+    sb.append(clientMetrics.getAppNamespace());
+
+    sb.append("\nStart Ms: ");
+    sb.append(clientMetrics.getWindow().getStartMs());
+
+    sb.append("\nEnd Ms: ");
+    sb.append(clientMetrics.getWindow().getEndMs());
+
+    for (LogSourceMetrics logSourceMetrics: clientMetrics.getLogSourceMetricsList()) {
+      sb.append("-Log-source:" + logSourceMetrics.getLogSource() + "\n");
+      for(LogEventDropped logEventDropped: logSourceMetrics.getLogEventDroppedList()) {
+        sb.append("--Reason: " + logEventDropped.getReason() + "\n");
+        sb.append("--Count: " + logEventDropped.getEventsDroppedCount() + "\n");
+      }
+    }
+    return sb.toString();
+  }
+
   void logAndUpdateState(TransportContext transportContext, int attemptNumber) {
     TransportBackend backend = backendRegistry.get(transportContext.getBackendName());
     long maxNextRequestWaitMillis = 0;
@@ -136,8 +167,15 @@ public class Uploader {
         }
 
         if (transportContext.shouldUploadClientHealthMetrics()) {
+          clientHealthMetricsStore.resetClientMetrics();
+          clientHealthMetricsStore.recordLogEventDropped(40, LogEventDropped.Reason.CACHE_FULL, "FIRELOG_TEST");
+          clientHealthMetricsStore.recordLogEventDropped(50, LogEventDropped.Reason.SERVER_ERROR, "FIRELOG_TEST");
+
           ClientMetrics clientMetrics =
               guard.runCriticalSection(clientHealthMetricsStore::loadClientMetrics);
+
+          Log.d("E2E-Test", convertStr(clientMetrics));
+
           EventInternal eventInternal =
               EventInternal.builder()
                   .setEventMillis(clock.getTime())

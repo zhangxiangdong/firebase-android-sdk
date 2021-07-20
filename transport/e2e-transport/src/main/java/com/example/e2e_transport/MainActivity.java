@@ -18,9 +18,12 @@ public class MainActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
 
+    CCTDestination destination = CCTDestination.LEGACY_INSTANCE;
+
+    TransportRuntime.initialize(this.getApplicationContext());
     Transport<Test> transportRuntime =
-        TransportRuntime.getInstance()
-            .newFactory(CCTDestination.LEGACY_INSTANCE)
+            TransportRuntime.getInstance()
+            .newFactory(destination)
             .getTransport("1018", Test.class, Encoding.of("proto"), Test::toByteArray);
 
     transportRuntime.send(Event.ofData(
