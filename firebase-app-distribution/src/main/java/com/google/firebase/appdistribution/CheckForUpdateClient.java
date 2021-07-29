@@ -19,14 +19,11 @@ import static com.google.firebase.appdistribution.FirebaseAppDistributionExcepti
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.pm.PackageInfoCompat;
-import androidx.core.os.HandlerCompat;
 import com.google.android.gms.tasks.CancellationTokenSource;
 import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.appdistribution.internal.AppDistributionReleaseInternal;
@@ -43,8 +40,8 @@ class CheckForUpdateClient {
   private final FirebaseAppDistributionTesterApiClient firebaseAppDistributionTesterApiClient;
   private final FirebaseInstallationsApi firebaseInstallationsApi;
 
-  private TaskCompletionSource<AppDistributionReleaseInternal> checkForUpdateTaskCompletionSource =
-      null;
+  private SynchronizedTaskCompletionSource<AppDistributionReleaseInternal>
+      checkForUpdateTaskCompletionSource = null;
   private CancellationTokenSource checkForUpdateCancellationSource;
   private final Executor checkForUpdateExecutor;
 
@@ -59,6 +56,19 @@ class CheckForUpdateClient {
     this.checkForUpdateExecutor = Executors.newFixedThreadPool(UPDATE_THREAD_POOL_SIZE);
   }
 
+  @VisibleForTesting
+  CheckForUpdateClient(
+      @NonNull FirebaseApp firebaseApp,
+      @NonNull FirebaseAppDistributionTesterApiClient firebaseAppDistributionTesterApiClient,
+      @NonNull FirebaseInstallationsApi firebaseInstallationsApi,
+      @NonNull Executor executor) {
+    this.firebaseApp = firebaseApp;
+    this.firebaseAppDistributionTesterApiClient = firebaseAppDistributionTesterApiClient;
+    this.firebaseInstallationsApi = firebaseInstallationsApi;
+    // TODO: verify if this is best way to use executorservice here
+    this.checkForUpdateExecutor = executor;
+  }
+
   @NonNull
   public Task<AppDistributionReleaseInternal> checkForUpdate() {
 
@@ -69,7 +79,7 @@ class CheckForUpdateClient {
 
     checkForUpdateCancellationSource = new CancellationTokenSource();
     checkForUpdateTaskCompletionSource =
-        new TaskCompletionSource<>(checkForUpdateCancellationSource.getToken());
+        new SynchronizedTaskCompletionSource<>(checkForUpdateCancellationSource.getToken());
 
     Task<String> installationIdTask = firebaseInstallationsApi.getId();
     // forceRefresh is false to get locally cached token if available
@@ -78,26 +88,24 @@ class CheckForUpdateClient {
 
     Tasks.whenAllSuccess(installationIdTask, installationAuthTokenTask)
         .addOnSuccessListener(
-            checkForUpdateExecutor, tasks -> {
+            checkForUpdateExecutor,
+            tasks -> {
               String fid = installationIdTask.getResult();
               InstallationTokenResult installationTokenResult =
                   installationAuthTokenTask.getResult();
-                    try {
-                      AppDistributionReleaseInternal latestRelease =
-                          getLatestReleaseFromClient(
-                              fid,
-                              firebaseApp.getOptions().getApplicationId(),
-                              firebaseApp.getOptions().getApiKey(),
-                              installationTokenResult.getToken());
-                      updateOnUiThread(
-                          () -> {
-                            if (checkForUpdateTaskCompletionSource != null
-                                && !checkForUpdateTaskCompletionSource.getTask().isComplete())
-                              checkForUpdateTaskCompletionSource.setResult(latestRelease);
-                          });
-                    } catch (FirebaseAppDistributionException ex) {
-                      updateOnUiThread(() -> setCheckForUpdateTaskCompletionError(ex));
-                    }
+              try {
+                AppDistributionReleaseInternal latestRelease =
+                    getLatestReleaseFromClient(
+                        fid,
+                        firebaseApp.getOptions().getApplicationId(),
+                        firebaseApp.getOptions().getApiKey(),
+                        installationTokenResult.getToken());
+                if (checkForUpdateTaskCompletionSource != null
+                    && !checkForUpdateTaskCompletionSource.getTask().isComplete())
+                  checkForUpdateTaskCompletionSource.setResult(latestRelease);
+              } catch (FirebaseAppDistributionException ex) {
+                setCheckForUpdateTaskCompletionError(ex);
+              }
             })
         .addOnFailureListener(
             e ->
@@ -129,10 +137,6 @@ class CheckForUpdateClient {
           FirebaseAppDistributionException.Status.NETWORK_FAILURE,
           e);
     }
-  }
-
-  private void updateOnUiThread(Runnable runnable) {
-    HandlerCompat.createAsync(Looper.getMainLooper()).post(runnable);
   }
 
   private void setCheckForUpdateTaskCompletionError(FirebaseAppDistributionException e) {
