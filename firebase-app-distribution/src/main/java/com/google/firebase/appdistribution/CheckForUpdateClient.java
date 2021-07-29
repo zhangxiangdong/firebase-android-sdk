@@ -40,7 +40,7 @@ class CheckForUpdateClient {
   private static final int UPDATE_THREAD_POOL_SIZE = 4;
 
   private final FirebaseApp firebaseApp;
-  private FirebaseAppDistributionTesterApiClient firebaseAppDistributionTesterApiClient;
+  private final FirebaseAppDistributionTesterApiClient firebaseAppDistributionTesterApiClient;
   private final FirebaseInstallationsApi firebaseInstallationsApi;
 
   private TaskCompletionSource<AppDistributionReleaseInternal> checkForUpdateTaskCompletionSource =
@@ -78,12 +78,10 @@ class CheckForUpdateClient {
 
     Tasks.whenAllSuccess(installationIdTask, installationAuthTokenTask)
         .addOnSuccessListener(
-            tasks -> {
+            checkForUpdateExecutor, tasks -> {
               String fid = installationIdTask.getResult();
               InstallationTokenResult installationTokenResult =
                   installationAuthTokenTask.getResult();
-              checkForUpdateExecutor.execute(
-                  () -> {
                     try {
                       AppDistributionReleaseInternal latestRelease =
                           getLatestReleaseFromClient(
@@ -100,7 +98,6 @@ class CheckForUpdateClient {
                     } catch (FirebaseAppDistributionException ex) {
                       updateOnUiThread(() -> setCheckForUpdateTaskCompletionError(ex));
                     }
-                  });
             })
         .addOnFailureListener(
             e ->
