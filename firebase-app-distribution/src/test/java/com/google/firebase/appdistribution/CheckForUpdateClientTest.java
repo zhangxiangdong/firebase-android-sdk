@@ -140,13 +140,13 @@ public class CheckForUpdateClientTest {
     when(mockFirebaseInstallations.getToken(false))
             .thenReturn(Tasks.forResult(mockInstallationTokenResult));
 
+    shadowOf(Looper.getMainLooper()).idle();
     TestOnCompleteListener<AppDistributionReleaseInternal> onCompleteListener =
             new TestOnCompleteListener<>();
     Task<AppDistributionReleaseInternal> task = checkForUpdateClient.checkForUpdate();
     task.addOnCompleteListener(onCompleteListener);
 
     AppDistributionReleaseInternal appDistributionReleaseInternal = onCompleteListener.await();
-    shadowOf(Looper.getMainLooper()).idle();
     assertEquals(TEST_RELEASE_CURRENT, appDistributionReleaseInternal);
     verify(mockFirebaseInstallations, times(1)).getId();
     verify(mockFirebaseInstallations, times(1)).getToken(false);
