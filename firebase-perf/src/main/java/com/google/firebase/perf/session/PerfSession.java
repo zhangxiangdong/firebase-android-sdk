@@ -15,6 +15,7 @@
 package com.google.firebase.perf.session;
 
 import android.os.Parcel;
+import android.os.ParcelUuid;
 import android.os.Parcelable;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,7 +31,8 @@ import java.util.concurrent.TimeUnit;
 /** Details of a session including a unique Id and related information. */
 public class PerfSession implements Parcelable {
 
-  private final String sessionId;
+  private String sessionIdString;
+  private final ParcelUuid sessionId;
   private final Timer creationTime;
 
   private boolean isGaugeAndEventCollectionEnabled = false;
@@ -39,10 +41,7 @@ public class PerfSession implements Parcelable {
    * Creates a PerfSession object and decides what metrics to collect.
    */
   public static PerfSession create() {
-    String sessionId = UUID.randomUUID().toString();
-    sessionId = sessionId.replaceAll("\\-", "");
-
-    PerfSession session = new PerfSession(sessionId, new Clock());
+    PerfSession session = new PerfSession(new ParcelUuid(UUID.randomUUID()), new Clock());
     session.setGaugeAndEventCollectionEnabled(shouldCollectGaugesAndEvents());
 
     return session;
@@ -50,21 +49,24 @@ public class PerfSession implements Parcelable {
 
   /** Creates a PerfSession with the provided {@code sessionId} and {@code clock}. */
   @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-  public PerfSession(String sessionId, Clock clock) {
+  public PerfSession(ParcelUuid sessionId, Clock clock) {
     this.sessionId = sessionId;
     creationTime = clock.getTime();
   }
 
   private PerfSession(@NonNull Parcel in) {
     super();
-    sessionId = in.readString();
+    sessionId = in.readParcelable(ParcelUuid.class.getClassLoader());
     isGaugeAndEventCollectionEnabled = in.readByte() != 0;
     creationTime = in.readParcelable(Timer.class.getClassLoader());
   }
 
   /** Returns the sessionId of the object. */
   public String sessionId() {
-    return sessionId;
+    if (sessionIdString == null) {
+      sessionIdString = sessionId.toString();
+    }
+    return sessionIdString;
   }
 
   /**
@@ -117,7 +119,7 @@ public class PerfSession implements Parcelable {
   /** Creates and returns the proto object for PerfSession object. */
   public com.google.firebase.perf.v1.PerfSession build() {
     com.google.firebase.perf.v1.PerfSession.Builder sessionMetric =
-        com.google.firebase.perf.v1.PerfSession.newBuilder().setSessionId(sessionId);
+        com.google.firebase.perf.v1.PerfSession.newBuilder().setSessionId(sessionId());
 
     // If gauge collection is enabled, enable gauge collection verbosity.
     if (isGaugeAndEventCollectionEnabled) {
@@ -192,7 +194,7 @@ public class PerfSession implements Parcelable {
    * @param flags Additional flags about how the object should be written.
    */
   public void writeToParcel(@NonNull Parcel out, int flags) {
-    out.writeString(sessionId);
+    out.writeParcelable(sessionId, 0);
     out.writeByte((byte) (isGaugeAndEventCollectionEnabled ? 1 : 0));
     out.writeParcelable(creationTime, 0);
   }
