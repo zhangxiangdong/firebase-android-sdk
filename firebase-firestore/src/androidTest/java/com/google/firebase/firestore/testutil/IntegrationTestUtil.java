@@ -97,7 +97,7 @@ public class IntegrationTestUtil {
   private static final Map<FirebaseFirestore, Boolean> firestoreStatus = new HashMap<>();
 
   /** Default amount of time to wait for a given operation to complete, used by waitFor() helper. */
-  private static final long OPERATION_WAIT_TIMEOUT_MS = 30000;
+  private static final long OPERATION_WAIT_TIMEOUT_MS = 300000;
 
   /**
    * Firestore databases can be subject to a ~30s "cold start" delay if they have not been used

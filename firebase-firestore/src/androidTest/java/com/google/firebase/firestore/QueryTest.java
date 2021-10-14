@@ -30,6 +30,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import android.os.StrictMode;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.gms.tasks.Task;
 import com.google.common.collect.Lists;
@@ -41,8 +43,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
@@ -52,9 +58,11 @@ public class QueryTest {
   public void tearDown() {
     IntegrationTestUtil.tearDown();
   }
+  @Rule
+  public Timeout timeout = new Timeout(1200, TimeUnit.SECONDS);
 
   @Test
-  public void testLimitQueries() {
+  public void testDemo() {
     CollectionReference collection =
         testCollectionWithDocs(
             map(
@@ -62,10 +70,24 @@ public class QueryTest {
                 "b", map("k", "b"),
                 "c", map("k", "c")));
 
-    Query query = collection.limit(2);
+    FirebaseFirestore db = collection.firestore;
+
+    waitFor(db.disableNetwork());
+    WriteBatch batch1 = db.batch();
+    batch1.update(collection.document("a"), map("k", "a+"));
+    batch1.commit();
+
+    collection.document("b").update(map("k", "b+"));
+
+    Query query = collection;
     QuerySnapshot set = waitFor(query.get());
     List<Map<String, Object>> data = querySnapshotToValues(set);
-    assertEquals(asList(map("k", "a"), map("k", "b")), data);
+    assertEquals(asList(map("k", "a+"), map("k", "b+")), data);
+
+    waitFor(db.enableNetwork());
+    waitFor(db.waitForPendingWrites());
+
+    assertEquals(asList(map("k", "a+"), map("k", "b+")), data);
   }
 
   @Test
