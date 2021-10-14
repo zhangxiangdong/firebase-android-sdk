@@ -134,6 +134,7 @@ public class SessionManager extends AppStateUpdateHandler {
   public void initializeGaugeCollection() {
     logGaugeMetadataIfCollectionEnabled(ApplicationProcessState.FOREGROUND);
     startOrStopCollectingGauges(ApplicationProcessState.FOREGROUND);
+
   }
 
   /**
@@ -161,17 +162,23 @@ public class SessionManager extends AppStateUpdateHandler {
   }
 
   private void logGaugeMetadataIfCollectionEnabled(ApplicationProcessState appState) {
+    androidx.tracing.Trace.beginSection("Trace Session logGaugeMetadataIfCollectionEnabled");
+
     if (perfSession.isGaugeAndEventCollectionEnabled()) {
       gaugeManager.logGaugeMetadata(perfSession.sessionId(), appState);
     }
+    androidx.tracing.Trace.endSection();
   }
 
   private void startOrStopCollectingGauges(ApplicationProcessState appState) {
     if (perfSession.isGaugeAndEventCollectionEnabled()) {
+      androidx.tracing.Trace.beginSection("Trace Session startOrStopCollectingGauges");
+
       gaugeManager.startCollectingGauges(perfSession, appState);
     } else {
       gaugeManager.stopCollectingGauges();
     }
+    androidx.tracing.Trace.endSection();
   }
 
   @VisibleForTesting

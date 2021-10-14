@@ -147,6 +147,8 @@ public class RemoteConfigComponent {
   @VisibleForTesting
   @KeepForSdk
   public synchronized FirebaseRemoteConfig get(String namespace) {
+    androidx.tracing.Trace.beginSection("Trace RemoteConfig");
+
     ConfigCacheClient fetchedCacheClient = getCacheClient(namespace, FETCH_FILE_NAME);
     ConfigCacheClient activatedCacheClient = getCacheClient(namespace, ACTIVATE_FILE_NAME);
     ConfigCacheClient defaultsCacheClient = getCacheClient(namespace, DEFAULTS_FILE_NAME);
@@ -159,7 +161,7 @@ public class RemoteConfigComponent {
       getHandler.addListener(personalization::logArmActive);
     }
 
-    return get(
+    FirebaseRemoteConfig temp = get(
         firebaseApp,
         namespace,
         firebaseInstallations,
@@ -171,6 +173,8 @@ public class RemoteConfigComponent {
         getFetchHandler(namespace, fetchedCacheClient, metadataClient),
         getHandler,
         metadataClient);
+    androidx.tracing.Trace.endSection();
+    return temp;
   }
 
   @VisibleForTesting

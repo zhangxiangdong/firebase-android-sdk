@@ -40,6 +40,8 @@ public class FirebasePerformanceModule {
       @NonNull FirebaseInstallationsApi firebaseInstallations,
       @NonNull Provider<RemoteConfigComponent> remoteConfigComponentProvider,
       @NonNull Provider<TransportFactory> transportFactoryProvider) {
+    androidx.tracing.Trace.beginSection("Trace FireperfInit");
+
     this.firebaseApp = firebaseApp;
     this.firebaseInstallations = firebaseInstallations;
     this.remoteConfigComponentProvider = remoteConfigComponentProvider;
@@ -68,16 +70,25 @@ public class FirebasePerformanceModule {
 
   @Provides
   RemoteConfigManager providesRemoteConfigManager() {
-    return RemoteConfigManager.getInstance();
+    androidx.tracing.Trace.beginSection("Trace Dagger RemoteConfigManager.getInstance()");
+    RemoteConfigManager remoteConfigManager = RemoteConfigManager.getInstance();
+    androidx.tracing.Trace.endSection();
+    return remoteConfigManager;
   }
 
   @Provides
   ConfigResolver providesConfigResolver() {
-    return ConfigResolver.getInstance();
+    androidx.tracing.Trace.beginSection("Trace Dagger ConfigResolver.getInstance");
+    ConfigResolver configResolver = ConfigResolver.getInstance();
+    androidx.tracing.Trace.endSection();
+    return configResolver;
   }
 
   @Provides
   GaugeManager providesGaugeManager() {
-    return GaugeManager.getInstance();
+    androidx.tracing.Trace.beginSection("Trace Dagger GaugeManager.getInstance()");
+    GaugeManager gaugeManager = GaugeManager.getInstance();
+    androidx.tracing.Trace.endSection();
+    return gaugeManager;
   }
 }

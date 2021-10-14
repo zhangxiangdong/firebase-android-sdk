@@ -19,6 +19,8 @@ import android.os.Parcelable;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import androidx.tracing.Trace;
+
 import com.google.firebase.perf.config.ConfigResolver;
 import com.google.firebase.perf.util.Clock;
 import com.google.firebase.perf.util.Timer;
@@ -39,10 +41,19 @@ public class PerfSession implements Parcelable {
    * Creates a PerfSession object and decides what metrics to collect.
    */
   public static PerfSession create() {
+    Trace.beginSection("Trace PerfSession.create()");
+
+    Trace.beginSection("Trace generate session ID");
     String sessionId = UUID.randomUUID().toString().replace("-", "");
+    Trace.endSection();
 
     PerfSession session = new PerfSession(sessionId, new Clock());
+
+    Trace.beginSection("Trace shouldCollectGaugesAndEvents()");
     session.setGaugeAndEventCollectionEnabled(shouldCollectGaugesAndEvents());
+    Trace.endSection();
+
+    Trace.endSection();
 
     return session;
   }
@@ -167,9 +178,16 @@ public class PerfSession implements Parcelable {
   /** If true, Session Gauge collection is enabled. */
   public static boolean shouldCollectGaugesAndEvents() {
     ConfigResolver configResolver = ConfigResolver.getInstance();
+    Trace.beginSection("Trace configResolver.isPerformanceMonitoringEnabled()");
+    boolean isPerformanceMonitoringEnabled = configResolver.isPerformanceMonitoringEnabled();
+    Trace.endSection();
 
-    return configResolver.isPerformanceMonitoringEnabled()
-        && Math.random() < configResolver.getSessionsSamplingRate();
+    Trace.beginSection("Trace configResolver.getSessionsSamplingRate()");
+    float sessionSamplingRate = configResolver.getSessionsSamplingRate();
+    Trace.endSection();
+
+    return isPerformanceMonitoringEnabled
+        && Math.random() < sessionSamplingRate;
   }
 
   /**

@@ -206,6 +206,8 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
 
   @Override
   public synchronized void onActivityResumed(Activity activity) {
+    androidx.tracing.Trace.beginSection("Trace AppStartTrace onActivityResumed()");
+
     if (isStartedFromBackground
         || onResumeTime != null // An activity already called onResume()
         || isTooLateToInitUI) {
@@ -232,6 +234,8 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
       // After AppStart trace is logged, we can unregister this callback.
       unregisterActivityLifecycleCallbacks();
     }
+    androidx.tracing.Trace.endSection();
+
   }
 
   private void logAppStartTrace() {

@@ -23,9 +23,12 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.tracing.Trace;
+
 import com.google.android.gms.common.internal.Preconditions;
 import com.google.android.gms.common.util.VisibleForTesting;
 import com.google.firebase.perf.FirebasePerformanceInitializer;
@@ -54,19 +57,31 @@ public class FirebasePerfProvider extends ContentProvider {
 
   @Override
   public void attachInfo(Context context, ProviderInfo info) {
+    Trace.beginSection("Trace FirebasePerfProvider attachInfo()");
+
     // super.attachInfo calls onCreate(). Fail as early as possible.
     checkContentProviderAuthority(info);
     super.attachInfo(context, info);
 
     // Initialize ConfigResolver early for accessing device caching layer.
+    androidx.tracing.Trace.beginSection("Trace FireperfInit ConfigResolver.getInstance()");
     ConfigResolver configResolver = ConfigResolver.getInstance();
-    configResolver.setContentProviderContext(getContext());
+    androidx.tracing.Trace.endSection();
 
+    androidx.tracing.Trace.beginSection("Trace FireperfInit setContentProviderContext");
+    configResolver.setContentProviderContext(getContext());
+    androidx.tracing.Trace.endSection();
+
+    androidx.tracing.Trace.beginSection("Trace FireperfInit AppStateMonitor.getInstance()");
     AppStateMonitor appStateMonitor = AppStateMonitor.getInstance();
+    androidx.tracing.Trace.endSection();
+
     appStateMonitor.registerActivityLifecycleCallbacks(getContext());
     appStateMonitor.registerForAppColdStart(new FirebasePerformanceInitializer());
 
+    androidx.tracing.Trace.beginSection("Trace FireperfInit AppStartTrace.getInstance()");
     AppStartTrace appStartTrace = AppStartTrace.getInstance();
+    androidx.tracing.Trace.endSection();
     appStartTrace.registerActivityLifecycleCallbacks(getContext());
 
     mainHandler.post(new AppStartTrace.StartFromBackgroundRunnable(appStartTrace));
@@ -75,7 +90,17 @@ public class FirebasePerfProvider extends ContentProvider {
     // possible.
     // There is code in SessionManager that prevents us from resetting the session twice in case
     // of app cold start.
+    Trace.beginSection("Trace SessionManager.instance");
+    SessionManager.getInstance();
+
+    Trace.endSection();
+
+
+    Trace.beginSection("Trace SessionManager.initializeGaugeCollection()");
     SessionManager.getInstance().initializeGaugeCollection();
+    Trace.endSection();
+
+    Trace.endSection();
   }
 
   /** Called before {@link Application#onCreate()}. */

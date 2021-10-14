@@ -181,6 +181,8 @@ public class AppStateMonitor implements ActivityLifecycleCallbacks {
 
   @Override
   public synchronized void onActivityResumed(Activity activity) {
+    androidx.tracing.Trace.beginSection("Trace AppStateMonitor onActivityResumed()");
+
     // cases:
     // 1. At app startup, first activity comes to foreground.
     // 2. app switch from background to foreground.
@@ -202,6 +204,7 @@ public class AppStateMonitor implements ActivityLifecycleCallbacks {
       // case 3: app already in foreground, current activity is replaced by another activity.
       activityToResumedMap.put(activity, true);
     }
+    androidx.tracing.Trace.endSection();
   }
 
   /** Returns if this is the cold start of the app. */

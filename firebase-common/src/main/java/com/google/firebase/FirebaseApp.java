@@ -581,7 +581,9 @@ public class FirebaseApp {
       UserUnlockReceiver.ensureReceiverRegistered(applicationContext);
     } else {
       Log.i(LOG_TAG, "Device unlocked: initializing all Firebase APIs for app " + getName());
+      androidx.tracing.Trace.beginSection("Trace FirebaseApp initializeEagerComponents");
       componentRuntime.initializeEagerComponents(isDefaultApp());
+      androidx.tracing.Trace.endSection();
     }
   }
 

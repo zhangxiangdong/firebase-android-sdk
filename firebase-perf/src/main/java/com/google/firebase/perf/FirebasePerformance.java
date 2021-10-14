@@ -165,6 +165,7 @@ public class FirebasePerformance implements FirebasePerformanceAttributable {
       RemoteConfigManager remoteConfigManager,
       ConfigResolver configResolver,
       GaugeManager gaugeManager) {
+    androidx.tracing.Trace.beginSection("Trace FireperfInit");
 
     this.firebaseApp = firebaseApp;
     this.firebaseRemoteConfigProvider = firebaseRemoteConfigProvider;
@@ -177,28 +178,47 @@ public class FirebasePerformance implements FirebasePerformanceAttributable {
       this.mMetadataBundle = new ImmutableBundle(new Bundle());
       return;
     }
-
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit TransportManager.getInstance()");
     TransportManager.getInstance()
         .initialize(firebaseApp, firebaseInstallationsApi, transportFactoryProvider);
+    androidx.tracing.Trace.endSection();
 
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit firebaseApp.getApplicationContext()");
     Context appContext = firebaseApp.getApplicationContext();
-    // TODO(b/110178816): Explore moving off of main thread.
-    mMetadataBundle = extractMetadata(appContext);
+    androidx.tracing.Trace.endSection();
 
+    // TODO(b/110178816): Explore moving off of main thread.
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit extractMetadata");
+    mMetadataBundle = extractMetadata(appContext);
+    androidx.tracing.Trace.endSection();
+
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit setFirebaseRemoteConfigProvider");
     remoteConfigManager.setFirebaseRemoteConfigProvider(firebaseRemoteConfigProvider);
+    androidx.tracing.Trace.endSection();
+
     this.configResolver = configResolver;
     this.configResolver.setMetadataBundle(mMetadataBundle);
     this.configResolver.setApplicationContext(appContext);
+
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit gaugeManager.setApplicationContext");
     gaugeManager.setApplicationContext(appContext);
 
+    androidx.tracing.Trace.endSection();
+
+    androidx.tracing.Trace.beginSection("Trace FirebasePerfInit configResolver.getIsPerformanceCollectionEnabled");
     mPerformanceCollectionForceEnabledState = configResolver.getIsPerformanceCollectionEnabled();
-    if (logger.isLogcatEnabled() && isPerformanceCollectionEnabled()) {
+    androidx.tracing.Trace.endSection();
+
+    androidx.tracing.Trace.beginSection("Trace FireperfInit log message");
+  if (logger.isLogcatEnabled() && isPerformanceCollectionEnabled()) {
       logger.info(
           String.format(
               "Firebase Performance Monitoring is successfully initialized! In a minute, visit the Firebase console to view your data: %s",
               ConsoleUrlGenerator.generateDashboardUrl(
                   firebaseApp.getOptions().getProjectId(), appContext.getPackageName())));
     }
+    androidx.tracing.Trace.endSection();
+    androidx.tracing.Trace.endSection();
   }
 
   /**

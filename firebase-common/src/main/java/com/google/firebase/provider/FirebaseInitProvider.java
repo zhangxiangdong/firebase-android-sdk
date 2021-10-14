@@ -40,19 +40,25 @@ public class FirebaseInitProvider extends ContentProvider {
 
   @Override
   public void attachInfo(@NonNull Context context, @NonNull ProviderInfo info) {
+    androidx.tracing.Trace.beginSection("Trace FirebaseInitProvider attachInfo");
+
     // super.attachInfo calls onCreate. Fail as early as possible.
     checkContentProviderAuthority(info);
     super.attachInfo(context, info);
+    androidx.tracing.Trace.endSection();
   }
 
   /** Called before {@link Application#onCreate()}. */
   @Override
   public boolean onCreate() {
+    androidx.tracing.Trace.beginSection("Trace FirebaseInitProvider onCreate");
+
     if (FirebaseApp.initializeApp(getContext()) == null) {
       Log.i(TAG, "FirebaseApp initialization unsuccessful");
     } else {
       Log.i(TAG, "FirebaseApp initialization successful");
     }
+    androidx.tracing.Trace.endSection();
     return false;
   }
 
