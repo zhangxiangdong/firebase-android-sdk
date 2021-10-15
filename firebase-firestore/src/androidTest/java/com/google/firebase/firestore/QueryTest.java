@@ -79,15 +79,15 @@ public class QueryTest {
 
     collection.document("b").update(map("k", "b+"));
 
-    Query query = collection;
+    Query query = collection.whereEqualTo("k", "a+");
     QuerySnapshot set = waitFor(query.get());
     List<Map<String, Object>> data = querySnapshotToValues(set);
-    assertEquals(asList(map("k", "a+"), map("k", "b+")), data);
+    assertEquals(asList(map("k", "a+")), data);
 
     waitFor(db.enableNetwork());
     waitFor(db.waitForPendingWrites());
 
-    assertEquals(asList(map("k", "a+"), map("k", "b+")), data);
+    assertEquals(asList(map("k", "a+")), data);
   }
 
   @Test
