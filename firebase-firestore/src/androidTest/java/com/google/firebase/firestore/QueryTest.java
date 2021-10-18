@@ -73,21 +73,25 @@ public class QueryTest {
     FirebaseFirestore db = collection.firestore;
 
     waitFor(db.disableNetwork());
+
+    // batch 1
     WriteBatch batch1 = db.batch();
     batch1.update(collection.document("a"), map("k", "a+"));
     batch1.commit();
 
+    // batch 2
     collection.document("b").update(map("k", "b+"));
 
-    Query query = collection.whereEqualTo("k", "a+");
+    Query query = collection.whereEqualTo("k", "b+");
     QuerySnapshot set = waitFor(query.get());
     List<Map<String, Object>> data = querySnapshotToValues(set);
-    assertEquals(asList(map("k", "a+")), data);
+    assertEquals(asList(map("k", "b+")), data);
 
+    // batch 1 and 2 are acknowledged
     waitFor(db.enableNetwork());
     waitFor(db.waitForPendingWrites());
 
-    assertEquals(asList(map("k", "a+")), data);
+    assertEquals(asList(map("k", "b+")), data);
   }
 
   @Test

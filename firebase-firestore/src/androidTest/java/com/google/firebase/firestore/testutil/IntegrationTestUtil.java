@@ -314,8 +314,7 @@ public class IntegrationTestUtil {
 
   public static CollectionReference testCollectionWithDocs(Map<String, Map<String, Object>> docs) {
     CollectionReference collection = testCollection();
-    CollectionReference writer = testFirestore().collection(collection.getId());
-    writeAllDocs(writer, docs);
+    writeAllDocs(collection, docs);
     return collection;
   }
 
