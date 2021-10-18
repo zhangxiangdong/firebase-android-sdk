@@ -72,6 +72,7 @@ public class QueryTest {
 
     FirebaseFirestore db = collection.firestore;
 
+    // To show local mutation
     waitFor(db.disableNetwork());
 
     // batch 1
