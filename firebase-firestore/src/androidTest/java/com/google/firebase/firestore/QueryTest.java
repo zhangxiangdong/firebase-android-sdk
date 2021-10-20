@@ -84,15 +84,24 @@ public class QueryTest {
     collection.document("b").update(map("k", "b+"));
 
     Query query = collection.whereEqualTo("k", "b+");
-    QuerySnapshot set = waitFor(query.get());
+    EventAccumulator<QuerySnapshot> accumulator = new EventAccumulator<>();
+    query.addSnapshotListener(accumulator.listener());
+
+    QuerySnapshot set = accumulator.awaitLocalEvent();
     List<Map<String, Object>> data = querySnapshotToValues(set);
     assertEquals(asList(map("k", "b+")), data);
 
     // batch 1 and 2 are acknowledged
     waitFor(db.enableNetwork());
-    waitFor(db.waitForPendingWrites());
 
-    assertEquals(asList(map("k", "b+")), data);
+    // Another update via transaction
+    waitFor(db.runTransaction(transaction -> {
+      transaction.update(collection.document("c"), map("k", "b+"));
+      return null;
+    }));
+
+    data = querySnapshotToValues(accumulator.awaitRemoteEvent());
+    assertEquals(asList(map("k", "b+"), map("k", "b+")), data);
   }
 
   @Test
