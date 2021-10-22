@@ -85,7 +85,7 @@ public class QueryTest {
 
     Query query = collection.whereEqualTo("k", "b+");
     EventAccumulator<QuerySnapshot> accumulator = new EventAccumulator<>();
-    query.addSnapshotListener(accumulator.listener());
+    ListenerRegistration registration = query.addSnapshotListener(accumulator.listener());
 
     QuerySnapshot set = accumulator.awaitLocalEvent();
     List<Map<String, Object>> data = querySnapshotToValues(set);
@@ -102,6 +102,8 @@ public class QueryTest {
 
     data = querySnapshotToValues(accumulator.awaitRemoteEvent());
     assertEquals(asList(map("k", "b+"), map("k", "b+")), data);
+
+    registration.remove();
   }
 
   @Test
