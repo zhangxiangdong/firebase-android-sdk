@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.firebase.crashlytics.internal.unity;
+package com.google.firebase.firestore.local;
 
-public interface UnityVersionProvider {
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
-  /**
-   * Get the Crashlytics Unity package version.
-   *
-   * @return {@link String} Crashlytics Unity package version if available, or <code>null</code> if
-   *     the Crashlytics Unity package is not installed.
-   */
-  String getUnityVersion();
+@RunWith(RobolectricTestRunner.class)
+@Config(manifest = Config.NONE)
+public class MemoryDocumentOverlayCacheTestCase extends DocumentOverlayCacheTestCase {
+  @Override
+  Persistence getPersistence() {
+    return PersistenceTestHelpers.createEagerGCMemoryPersistence();
+  }
 }

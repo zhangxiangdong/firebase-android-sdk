@@ -58,8 +58,14 @@ class CountingQueryEngine implements QueryEngine {
         new LocalDocumentsView(
             wrapRemoteDocumentCache(localDocuments.getRemoteDocumentCache()),
             wrapMutationQueue(localDocuments.getMutationQueue()),
+            localDocuments.getDocumentOverlayCache(),
             localDocuments.getIndexManager());
     queryEngine.setLocalDocumentsView(view);
+  }
+
+  @Override
+  public void setIndexManager(IndexManager indexManager) {
+    // Not implemented.
   }
 
   @Override
@@ -68,11 +74,6 @@ class CountingQueryEngine implements QueryEngine {
       SnapshotVersion lastLimboFreeSnapshotVersion,
       ImmutableSortedSet<DocumentKey> remoteKeys) {
     return queryEngine.getDocumentsMatchingQuery(query, lastLimboFreeSnapshotVersion, remoteKeys);
-  }
-
-  @Override
-  public void handleDocumentChange(MutableDocument oldDocument, MutableDocument newDocument) {
-    queryEngine.handleDocumentChange(oldDocument, newDocument);
   }
 
   /** Returns the query engine that is used as the backing implementation. */
@@ -115,6 +116,11 @@ class CountingQueryEngine implements QueryEngine {
 
   private RemoteDocumentCache wrapRemoteDocumentCache(RemoteDocumentCache subject) {
     return new RemoteDocumentCache() {
+      @Override
+      public void setIndexManager(IndexManager indexManager) {
+        // Not implemented.
+      }
+
       @Override
       public void add(MutableDocument document, SnapshotVersion readTime) {
         subject.add(document, readTime);

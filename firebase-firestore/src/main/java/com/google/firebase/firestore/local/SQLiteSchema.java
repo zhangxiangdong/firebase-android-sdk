@@ -191,6 +191,7 @@ class SQLiteSchema {
     if (fromVersion < INDEXING_SUPPORT_VERSION && toVersion >= INDEXING_SUPPORT_VERSION) {
       Preconditions.checkState(Persistence.INDEXING_SUPPORT_ENABLED);
       createFieldIndex();
+      createCollectionGroupsTable();
     }
   }
 
@@ -364,6 +365,8 @@ class SQLiteSchema {
     ifTablesDontExist(
         new String[] {"index_configuration", "index_entries"},
         () -> {
+          // TODO(indexing): Do we need to store a different update time per user? We need to ensure
+          // that we index mutations entries for all users.
           db.execSQL(
               "CREATE TABLE index_configuration ("
                   + "index_id INTEGER, "
@@ -378,12 +381,27 @@ class SQLiteSchema {
           // for all queries.
           db.execSQL(
               "CREATE TABLE index_entries ("
-                  + "index_id INTEGER, "
+                  + "index_id INTEGER, " // The index_id of the field index creating this entry
                   + "array_value BLOB, " // index values for ArrayContains/ArrayContainsAny
                   + "directional_value BLOB, " // index values for equality and inequalities
                   + "uid TEXT, " // user id or null if there are no pending mutations
                   + "document_name TEXT, "
                   + "PRIMARY KEY (index_id, array_value, directional_value, uid, document_name))");
+        });
+  }
+
+  // TODO(indexing): Consolidate this table with the `collection_parents` table and figure out
+  // GC strategy.
+  private void createCollectionGroupsTable() {
+    ifTablesDontExist(
+        new String[] {"collection_group_update_times"},
+        () -> {
+          db.execSQL(
+              "CREATE TABLE collection_group_update_times ("
+                  + "collection_group TEXT, " // Name of the collection group.
+                  + "update_time_seconds INTEGER," // Time of last index backfill update
+                  + "update_time_nanos INTEGER,"
+                  + "PRIMARY KEY (collection_group))");
         });
   }
 
@@ -621,8 +639,10 @@ class SQLiteSchema {
               "CREATE TABLE document_overlays ("
                   + "uid TEXT, "
                   + "path TEXT, "
+                  + "largest_batch_id INTEGER, "
                   + "overlay_mutation BLOB, "
                   + "PRIMARY KEY (uid, path))");
+          db.execSQL("CREATE INDEX batch_id_overlay ON document_overlays (uid, largest_batch_id)");
         });
   }
 

@@ -39,10 +39,16 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
 
   private final SQLitePersistence db;
   private final LocalSerializer serializer;
+  private IndexManager indexManager;
 
   SQLiteRemoteDocumentCache(SQLitePersistence persistence, LocalSerializer serializer) {
     this.db = persistence;
     this.serializer = serializer;
+  }
+
+  @Override
+  public void setIndexManager(IndexManager indexManager) {
+    this.indexManager = indexManager;
   }
 
   @Override
@@ -64,7 +70,7 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
         timestamp.getNanoseconds(),
         message.toByteArray());
 
-    db.getIndexManager().addToCollectionParentIndex(document.getKey().getPath().popLast());
+    indexManager.addToCollectionParentIndex(document.getKey().getPath().popLast());
   }
 
   @Override
@@ -79,9 +85,12 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     String path = pathForKey(documentKey);
 
     MutableDocument document =
-        db.query("SELECT contents FROM remote_documents WHERE path = ?")
+        db.query(
+                "SELECT contents, read_time_seconds, read_time_nanos "
+                    + "FROM remote_documents "
+                    + "WHERE path = ?")
             .binding(path)
-            .firstValue(row -> decodeMaybeDocument(row.getBlob(0)));
+            .firstValue(row -> decodeMaybeDocument(row.getBlob(0), row.getInt(1), row.getInt(2)));
     return document != null ? document : MutableDocument.newInvalidDocument(documentKey);
   }
 
@@ -102,7 +111,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     SQLitePersistence.LongQuery longQuery =
         new SQLitePersistence.LongQuery(
             db,
-            "SELECT contents FROM remote_documents " + "WHERE path IN (",
+            "SELECT contents, read_time_seconds, read_time_nanos FROM remote_documents "
+                + "WHERE path IN (",
             args,
             ") ORDER BY path");
 
@@ -111,7 +121,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
           .performNextSubquery()
           .forEach(
               row -> {
-                MutableDocument decoded = decodeMaybeDocument(row.getBlob(0));
+                MutableDocument decoded =
+                    decodeMaybeDocument(row.getBlob(0), row.getInt(1), row.getInt(2));
                 results.put(decoded.getKey(), decoded);
               });
     }
@@ -121,7 +132,7 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
 
   @Override
   public ImmutableSortedMap<DocumentKey, MutableDocument> getAllDocumentsMatchingQuery(
-      Query query, SnapshotVersion sinceReadTime) {
+      final Query query, SnapshotVersion sinceReadTime) {
     hardAssert(
         !query.isCollectionGroupQuery(),
         "CollectionGroup queries should be handled in LocalDocumentsView");
@@ -143,7 +154,9 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     SQLitePersistence.Query sqlQuery;
     if (sinceReadTime.equals(SnapshotVersion.NONE)) {
       sqlQuery =
-          db.query("SELECT path, contents FROM remote_documents WHERE path >= ? AND path < ?")
+          db.query(
+                  "SELECT path, contents, read_time_seconds, read_time_nanos "
+                      + "FROM remote_documents WHERE path >= ? AND path < ?")
               .binding(prefixPath, prefixSuccessorPath);
     } else {
       // Execute an index-free query and filter by read time. This is safe since all document
@@ -151,7 +164,8 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
       // time set.
       sqlQuery =
           db.query(
-                  "SELECT path, contents FROM remote_documents WHERE path >= ? AND path < ?"
+                  "SELECT path, contents, read_time_seconds, read_time_nanos "
+                      + "FROM remote_documents WHERE path >= ? AND path < ?"
                       + "AND (read_time_seconds > ? OR (read_time_seconds = ? AND read_time_nanos > ?))")
               .binding(
                   prefixPath,
@@ -174,14 +188,18 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
             return;
           }
 
-          byte[] rawDocument = row.getBlob(1);
+          // Store row values in array entries to provide the correct context inside the executor.
+          final byte[] rawDocument = row.getBlob(1);
+          final int[] readTimeSeconds = {row.getInt(2)};
+          final int[] readTimeNanos = {row.getInt(3)};
 
           // Since scheduling background tasks incurs overhead, we only dispatch to a
           // background thread if there are still some documents remaining.
           Executor executor = row.isLast() ? Executors.DIRECT_EXECUTOR : backgroundQueue;
           executor.execute(
               () -> {
-                MutableDocument document = decodeMaybeDocument(rawDocument);
+                MutableDocument document =
+                    decodeMaybeDocument(rawDocument, readTimeSeconds[0], readTimeNanos[0]);
                 if (document.isFoundDocument() && query.matches(document)) {
                   synchronized (SQLiteRemoteDocumentCache.this) {
                     matchingDocuments[0] = matchingDocuments[0].insert(document.getKey(), document);
@@ -203,10 +221,12 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     return EncodedPath.encode(key.getPath());
   }
 
-  private MutableDocument decodeMaybeDocument(byte[] bytes) {
+  private MutableDocument decodeMaybeDocument(
+      byte[] bytes, int readTimeSeconds, int readTimeNanos) {
     try {
-      return serializer.decodeMaybeDocument(
-          com.google.firebase.firestore.proto.MaybeDocument.parseFrom(bytes));
+      return serializer
+          .decodeMaybeDocument(com.google.firebase.firestore.proto.MaybeDocument.parseFrom(bytes))
+          .withReadTime(new SnapshotVersion(new Timestamp(readTimeSeconds, readTimeNanos)));
     } catch (InvalidProtocolBufferException e) {
       throw fail("MaybeDocument failed to parse: %s", e);
     }

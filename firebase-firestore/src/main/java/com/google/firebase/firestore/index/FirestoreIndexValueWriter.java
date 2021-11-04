@@ -15,6 +15,7 @@
 package com.google.firebase.firestore.index;
 
 import com.google.firebase.firestore.model.ResourcePath;
+import com.google.firebase.firestore.model.Values;
 import com.google.firestore.v1.ArrayValue;
 import com.google.firestore.v1.MapValue;
 import com.google.firestore.v1.Value;
@@ -43,6 +44,10 @@ public class FirestoreIndexValueWriter {
   public static final int INDEX_TYPE_MAP = 55;
   public static final int INDEX_TYPE_REFERENCE_SEGMENT = 60;
 
+  // A terminator that indicates that a truncatable value was not truncated.
+  // This must be smaller than all other type labels.
+  public static final int NOT_TRUNCATED = 2;
+
   public static final FirestoreIndexValueWriter INSTANCE = new FirestoreIndexValueWriter();
 
   private FirestoreIndexValueWriter() {}
@@ -59,6 +64,8 @@ public class FirestoreIndexValueWriter {
   /** Writes an index value. */
   public void writeIndexValue(Value value, DirectionalIndexByteEncoder encoder) {
     writeIndexValueAux(value, encoder);
+    // Write separator to split index values (see go/firestore-storage-format#encodings).
+    encoder.writeInfinity();
   }
 
   private void writeIndexValueAux(Value indexValue, DirectionalIndexByteEncoder encoder) {
@@ -77,7 +84,11 @@ public class FirestoreIndexValueWriter {
           break;
         }
         writeValueTypeLabel(encoder, INDEX_TYPE_NUMBER);
-        encoder.writeDouble(number);
+        if (number == -0.0) {
+          encoder.writeDouble(0.0); // -0.0, 0 and 0.0 are all considered the same
+        } else {
+          encoder.writeDouble(number);
+        }
         break;
       case INTEGER_VALUE:
         writeValueTypeLabel(encoder, INDEX_TYPE_NUMBER);
@@ -92,15 +103,15 @@ public class FirestoreIndexValueWriter {
         break;
       case STRING_VALUE:
         writeIndexString(indexValue.getStringValue(), encoder);
-
+        writeTruncationMarker(encoder);
         break;
       case BYTES_VALUE:
         writeValueTypeLabel(encoder, INDEX_TYPE_BLOB);
         encoder.writeBytes(indexValue.getBytesValue());
+        writeTruncationMarker(encoder);
         break;
       case REFERENCE_VALUE:
         writeIndexEntityRef(indexValue.getReferenceValue(), encoder);
-
         break;
       case GEO_POINT_VALUE:
         LatLng geoPoint = indexValue.getGeoPointValue();
@@ -109,10 +120,16 @@ public class FirestoreIndexValueWriter {
         encoder.writeDouble(geoPoint.getLongitude());
         break;
       case MAP_VALUE:
+        if (Values.isMaxValue(indexValue)) {
+          writeValueTypeLabel(encoder, Integer.MAX_VALUE);
+          break;
+        }
         writeIndexMap(indexValue.getMapValue(), encoder);
+        writeTruncationMarker(encoder);
         break;
       case ARRAY_VALUE:
         writeIndexArray(indexValue.getArrayValue(), encoder);
+        writeTruncationMarker(encoder);
         break;
       default:
         throw new IllegalArgumentException(
@@ -151,11 +168,9 @@ public class FirestoreIndexValueWriter {
     writeValueTypeLabel(encoder, INDEX_TYPE_REFERENCE);
 
     ResourcePath path = ResourcePath.fromString(referenceValue);
-
     int numSegments = path.length();
     for (int index = DOCUMENT_NAME_OFFSET; index < numSegments; ++index) {
       String segment = path.getSegment(index);
-
       writeValueTypeLabel(encoder, INDEX_TYPE_REFERENCE_SEGMENT);
       writeUnlabeledIndexString(segment, encoder);
     }
@@ -163,5 +178,11 @@ public class FirestoreIndexValueWriter {
 
   private void writeValueTypeLabel(DirectionalIndexByteEncoder encoder, int typeOrder) {
     encoder.writeLong(typeOrder);
+  }
+
+  private void writeTruncationMarker(DirectionalIndexByteEncoder encoder) {
+    // While the SDK does not implement truncation, the truncation marker is used to terminate
+    // all variable length values (which are strings, bytes, references, arrays and maps).
+    encoder.writeLong(NOT_TRUNCATED);
   }
 }

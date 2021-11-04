@@ -17,7 +17,8 @@ package com.google.firebase.crashlytics.internal.common;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import com.google.firebase.crashlytics.internal.unity.UnityVersionProvider;
+import androidx.annotation.Nullable;
+import com.google.firebase.crashlytics.internal.DevelopmentPlatformProvider;
 
 /** Carries static information about the app. */
 public class AppData {
@@ -30,14 +31,15 @@ public class AppData {
   public final String versionCode;
   public final String versionName;
 
-  public final UnityVersionProvider unityVersionProvider;
+  @Nullable public final String developmentPlatform;
+  @Nullable public final String developmentPlatformVersion;
 
   public static AppData create(
       Context context,
       IdManager idManager,
       String googleAppId,
       String buildId,
-      UnityVersionProvider unityVersionProvider)
+      DevelopmentPlatformProvider developmentPlatformProvider)
       throws PackageManager.NameNotFoundException {
     final String packageName = context.getPackageName();
     final String installerPackageName = idManager.getInstallerPackageName();
@@ -54,7 +56,8 @@ public class AppData {
         packageName,
         versionCode,
         versionName,
-        unityVersionProvider);
+        developmentPlatformProvider.getDevelopmentPlatform(),
+        developmentPlatformProvider.getDevelopmentPlatformVersion());
   }
 
   public AppData(
@@ -64,13 +67,15 @@ public class AppData {
       String packageName,
       String versionCode,
       String versionName,
-      UnityVersionProvider unityVersionProvider) {
+      @Nullable String developmentPlatform,
+      @Nullable String developmentPlatformVersion) {
     this.googleAppId = googleAppId;
     this.buildId = buildId;
     this.installerPackageName = installerPackageName;
     this.packageName = packageName;
     this.versionCode = versionCode;
     this.versionName = versionName;
-    this.unityVersionProvider = unityVersionProvider;
+    this.developmentPlatform = developmentPlatform;
+    this.developmentPlatformVersion = developmentPlatformVersion;
   }
 }

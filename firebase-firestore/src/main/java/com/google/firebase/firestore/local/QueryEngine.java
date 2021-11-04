@@ -19,7 +19,6 @@ import com.google.firebase.database.collection.ImmutableSortedSet;
 import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
-import com.google.firebase.firestore.model.MutableDocument;
 import com.google.firebase.firestore.model.SnapshotVersion;
 
 /**
@@ -31,18 +30,12 @@ public interface QueryEngine {
   /** Sets the document view to query against. */
   void setLocalDocumentsView(LocalDocumentsView localDocuments);
 
+  /** Sets the index manager for query execution. */
+  void setIndexManager(IndexManager indexManager);
+
   /** Returns all local documents matching the specified query. */
   ImmutableSortedMap<DocumentKey, Document> getDocumentsMatchingQuery(
       Query query,
       SnapshotVersion lastLimboFreeSnapshotVersion,
       ImmutableSortedSet<DocumentKey> remoteKeys);
-
-  /**
-   * Notifies the query engine of a document change in case it would like to update indexes and the
-   * like.
-   *
-   * <p>TODO: We can change this to just accept the changed fields (w/ old and new values) if it's
-   * convenient for the caller to compute.
-   */
-  void handleDocumentChange(MutableDocument oldDocument, MutableDocument newDocument);
 }

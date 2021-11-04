@@ -14,10 +14,23 @@
 
 package com.google.firebase.firestore.local;
 
+import static com.google.firebase.firestore.util.Assert.hardAssert;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import com.google.firebase.firestore.index.IndexEntry;
+import com.google.firebase.Timestamp;
+import com.google.firebase.database.collection.ImmutableSortedMap;
+import com.google.firebase.firestore.core.Query;
+import com.google.firebase.firestore.model.Document;
+import com.google.firebase.firestore.model.DocumentKey;
+import com.google.firebase.firestore.model.FieldIndex;
+import com.google.firebase.firestore.model.ResourcePath;
+import com.google.firebase.firestore.model.SnapshotVersion;
 import com.google.firebase.firestore.util.AsyncQueue;
+import java.util.Collection;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
 /** Implements the steps for backfilling indexes. */
@@ -26,60 +39,69 @@ public class IndexBackfiller {
   private static final long INITIAL_BACKFILL_DELAY_MS = TimeUnit.SECONDS.toMillis(15);
   /** Minimum amount of time between backfill checks, after the first one. */
   private static final long REGULAR_BACKFILL_DELAY_MS = TimeUnit.MINUTES.toMillis(1);
+  /** The maximum number of documents to process each time backfill() is called. */
+  private static final int MAX_DOCUMENTS_TO_PROCESS = 50;
 
-  private final SQLitePersistence persistence;
+  private final Scheduler scheduler;
+  private final Persistence persistence;
+  private LocalDocumentsView localDocumentsView;
+  private IndexManager indexManager;
+  private int maxDocumentsToProcess = MAX_DOCUMENTS_TO_PROCESS;
 
-  public IndexBackfiller(SQLitePersistence sqLitePersistence) {
-    this.persistence = sqLitePersistence;
+  public IndexBackfiller(Persistence persistence, AsyncQueue asyncQueue) {
+    this.persistence = persistence;
+    this.scheduler = new Scheduler(asyncQueue);
+  }
+
+  public void setLocalDocumentsView(LocalDocumentsView localDocumentsView) {
+    this.localDocumentsView = localDocumentsView;
+  }
+
+  public void setIndexManager(IndexManager indexManager) {
+    this.indexManager = indexManager;
   }
 
   public static class Results {
     private final boolean hasRun;
 
-    private final int entriesAdded;
-    private final int entriesRemoved;
+    private final int documentsProcessed;
 
     static IndexBackfiller.Results DidNotRun() {
-      return new IndexBackfiller.Results(/* hasRun= */ false, 0, 0);
+      return new IndexBackfiller.Results(/* hasRun= */ false, 0);
     }
 
-    Results(boolean hasRun, int entriesAdded, int entriesRemoved) {
+    Results(boolean hasRun, int documentsProcessed) {
       this.hasRun = hasRun;
-      this.entriesAdded = entriesAdded;
-      this.entriesRemoved = entriesRemoved;
+      this.documentsProcessed = documentsProcessed;
     }
 
     public boolean hasRun() {
       return hasRun;
     }
 
-    public int getEntriesAdded() {
-      return entriesAdded;
-    }
-
-    public int getEntriesRemoved() {
-      return entriesRemoved;
+    public int getDocumentsProcessed() {
+      return documentsProcessed;
     }
   }
 
-  public class BackfillScheduler implements Scheduler {
-    private final AsyncQueue asyncQueue;
-    private final LocalStore localStore;
+  public class Scheduler implements com.google.firebase.firestore.local.Scheduler {
     private boolean hasRun = false;
     @Nullable private AsyncQueue.DelayedTask backfillTask;
+    private final AsyncQueue asyncQueue;
 
-    public BackfillScheduler(AsyncQueue asyncQueue, LocalStore localStore) {
+    public Scheduler(AsyncQueue asyncQueue) {
       this.asyncQueue = asyncQueue;
-      this.localStore = localStore;
     }
 
     @Override
     public void start() {
+      hardAssert(Persistence.INDEXING_SUPPORT_ENABLED, "Indexing support not enabled");
       scheduleBackfill();
     }
 
     @Override
     public void stop() {
+      hardAssert(Persistence.INDEXING_SUPPORT_ENABLED, "Indexing support not enabled");
       if (backfillTask != null) {
         backfillTask.cancel();
       }
@@ -92,69 +114,95 @@ public class IndexBackfiller {
               AsyncQueue.TimerId.INDEX_BACKFILL,
               delay,
               () -> {
-                localStore.backfillIndexes(IndexBackfiller.this);
+                backfill();
                 hasRun = true;
                 scheduleBackfill();
               });
     }
   }
 
-  public BackfillScheduler newScheduler(AsyncQueue asyncQueue, LocalStore localStore) {
-    return new BackfillScheduler(asyncQueue, localStore);
+  public Scheduler getScheduler() {
+    return scheduler;
   }
 
-  // TODO(indexing): Figure out which index entries to backfill.
   public Results backfill() {
-    int numIndexesWritten = 0;
-    int numIndexesRemoved = 0;
-    return new Results(/* hasRun= */ true, numIndexesWritten, numIndexesRemoved);
+    hardAssert(localDocumentsView != null, "setLocalDocumentsView() not called");
+    hardAssert(indexManager != null, "setIndexManager() not called");
+    return persistence.runTransaction(
+        "Backfill Indexes",
+        () -> {
+          // TODO(indexing): Handle field indexes that are removed by the user.
+          int documentsProcessed = writeIndexEntries(localDocumentsView);
+          return new Results(/* hasRun= */ true, documentsProcessed);
+        });
+  }
+
+  /** Writes index entries until the cap is reached. Returns the number of documents processed. */
+  private int writeIndexEntries(LocalDocumentsView localDocumentsView) {
+    int documentsProcessed = 0;
+    Timestamp startingTimestamp = Timestamp.now();
+
+    while (documentsProcessed < maxDocumentsToProcess) {
+      int documentsRemaining = maxDocumentsToProcess - documentsProcessed;
+      String collectionGroup = indexManager.getNextCollectionGroupToUpdate(startingTimestamp);
+      if (collectionGroup == null) {
+        break;
+      }
+      documentsProcessed +=
+          writeEntriesForCollectionGroup(localDocumentsView, collectionGroup, documentsRemaining);
+    }
+
+    return documentsProcessed;
+  }
+
+  /** Writes entries for the fetched field indexes. */
+  private int writeEntriesForCollectionGroup(
+      LocalDocumentsView localDocumentsView, String collectionGroup, int entriesRemainingUnderCap) {
+    Query query = new Query(ResourcePath.EMPTY, collectionGroup);
+
+    // Use the earliest updateTime of all field indexes as the base updateTime.
+    SnapshotVersion earliestUpdateTime =
+        getEarliestUpdateTime(indexManager.getFieldIndexes(collectionGroup));
+
+    // TODO(indexing): Use limit queries to only fetch the required number of entries.
+    // TODO(indexing): Support mutation batch Ids when sorting and writing indexes.
+    ImmutableSortedMap<DocumentKey, Document> documents =
+        localDocumentsView.getDocumentsMatchingQuery(query, earliestUpdateTime);
+
+    Queue<Document> oldestDocuments = getOldestDocuments(documents, entriesRemainingUnderCap);
+    indexManager.updateIndexEntries(oldestDocuments);
+    return oldestDocuments.size();
+  }
+
+  /** Returns up to {@code count} documents sorted by read time. */
+  private Queue<Document> getOldestDocuments(
+      ImmutableSortedMap<DocumentKey, Document> documents, int count) {
+    Queue<Document> oldestDocuments =
+        new PriorityQueue<>(count + 1, (l, r) -> r.getReadTime().compareTo(l.getReadTime()));
+    for (Map.Entry<DocumentKey, Document> entry : documents) {
+      oldestDocuments.add(entry.getValue());
+      if (oldestDocuments.size() > count) {
+        oldestDocuments.poll();
+      }
+    }
+    return oldestDocuments;
+  }
+
+  private SnapshotVersion getEarliestUpdateTime(Collection<FieldIndex> fieldIndexes) {
+    SnapshotVersion lowestVersion = null;
+    for (FieldIndex fieldIndex : fieldIndexes) {
+      lowestVersion =
+          lowestVersion == null
+              ? fieldIndex.getUpdateTime()
+              : fieldIndex.getUpdateTime().compareTo(lowestVersion) < 0
+                  ? fieldIndex.getUpdateTime()
+                  : lowestVersion;
+    }
+    return lowestVersion;
   }
 
   @VisibleForTesting
-  void addIndexEntry(IndexEntry entry) {
-    persistence.execute(
-        "INSERT OR IGNORE INTO index_entries ("
-            + "index_id, "
-            + "array_value, "
-            + "directional_value, "
-            + "uid, "
-            + "document_name) VALUES(?, ?, ?, ?, ?)",
-        entry.getIndexId(),
-        entry.getArrayValue(),
-        entry.getDirectionalValue(),
-        entry.getUid(),
-        entry.getDocumentName());
-  }
-
-  @VisibleForTesting
-  void removeIndexEntry(int indexId, String uid, String documentName) {
-    persistence.execute(
-        "DELETE FROM index_entries "
-            + "WHERE index_id = ? "
-            + "AND uid = ?"
-            + "AND document_name = ?",
-        indexId,
-        uid,
-        documentName);
-    ;
-  }
-
-  @Nullable
-  @VisibleForTesting
-  IndexEntry getIndexEntry(int indexId) {
-    return persistence
-        .query(
-            "SELECT array_value, directional_value, uid, document_name FROM index_entries WHERE index_id = ?")
-        .binding(indexId)
-        .firstValue(
-            row ->
-                row == null
-                    ? null
-                    : new IndexEntry(
-                        indexId,
-                        row.getBlob(0),
-                        row.getBlob(1),
-                        row.getString(2),
-                        row.getString(3)));
+  void setMaxDocumentsToProcess(int newMax) {
+    maxDocumentsToProcess = newMax;
   }
 }

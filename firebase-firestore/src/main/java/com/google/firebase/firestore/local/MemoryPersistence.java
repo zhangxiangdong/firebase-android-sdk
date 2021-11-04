@@ -32,7 +32,7 @@ public final class MemoryPersistence extends Persistence {
   // LocalStore wrapping this Persistence instance and this will make the in-memory persistence
   // layer behave as if it were actually persisting values.
   private final Map<User, MemoryMutationQueue> mutationQueues;
-  private final Map<User, MemoryDocumentOverlay> overlays;
+  private final Map<User, MemoryDocumentOverlayCache> overlays;
   private final MemoryIndexManager indexManager;
   private final MemoryTargetCache targetCache;
   private final MemoryBundleCache bundleCache;
@@ -61,7 +61,7 @@ public final class MemoryPersistence extends Persistence {
     indexManager = new MemoryIndexManager();
     targetCache = new MemoryTargetCache(this);
     bundleCache = new MemoryBundleCache();
-    remoteDocumentCache = new MemoryRemoteDocumentCache(this);
+    remoteDocumentCache = new MemoryRemoteDocumentCache();
     overlays = new HashMap<>();
   }
 
@@ -94,10 +94,10 @@ public final class MemoryPersistence extends Persistence {
   }
 
   @Override
-  MutationQueue getMutationQueue(User user) {
+  MutationQueue getMutationQueue(User user, IndexManager indexManager) {
     MemoryMutationQueue queue = mutationQueues.get(user);
     if (queue == null) {
-      queue = new MemoryMutationQueue(this);
+      queue = new MemoryMutationQueue(this, user);
       mutationQueues.put(user, queue);
     }
     return queue;
@@ -118,7 +118,9 @@ public final class MemoryPersistence extends Persistence {
   }
 
   @Override
-  IndexManager getIndexManager() {
+  MemoryIndexManager getIndexManager(User user) {
+    // We do not currently support indices for memory persistence, so we can return the same shared
+    // instance of the memory index manager.
     return indexManager;
   }
 
@@ -128,10 +130,10 @@ public final class MemoryPersistence extends Persistence {
   }
 
   @Override
-  DocumentOverlay getDocumentOverlay(User user) {
-    MemoryDocumentOverlay overlay = overlays.get(user);
+  DocumentOverlayCache getDocumentOverlay(User user) {
+    MemoryDocumentOverlayCache overlay = overlays.get(user);
     if (overlay == null) {
-      overlay = new MemoryDocumentOverlay();
+      overlay = new MemoryDocumentOverlayCache();
       overlays.put(user, overlay);
     }
     return overlay;

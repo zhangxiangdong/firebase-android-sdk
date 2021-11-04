@@ -14,6 +14,7 @@
 
 package com.google.firebase.firestore.model;
 
+import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,9 +22,9 @@ import java.util.List;
 /**
  * An index definition for field indices in Firestore.
  *
- * <p>Every index is associated with a collection. The definition contains a list of fields and the
- * indexes kind (which can be {@link Segment.Kind#ORDERED} or {@link Segment.Kind#CONTAINS} for
- * ArrayContains/ArrayContainsAny queries.
+ * <p>Every index is associated with a collection. The definition contains a list of fields and
+ * their indexkind (which can be {@link Segment.Kind#ASCENDING}, {@link Segment.Kind#DESCENDING} or
+ * {@link Segment.Kind#CONTAINS}) for ArrayContains/ArrayContainsAny queries.
  *
  * <p>Unlike the backend, the SDK does not differentiate between collection or collection
  * group-scoped indices. Every index can be used for both single collection and collection group
@@ -37,7 +38,9 @@ public final class FieldIndex {
     /** The type of the index, e.g. for which type of query it can be used. */
     public enum Kind {
       /** Ordered index. Can be used for <, <=, ==, >=, >, !=, IN and NOT IN queries. */
-      ORDERED,
+      ASCENDING,
+      /** Ordered index. Can be used for <, <=, ==, >=, >, !=, IN and NOT IN queries. */
+      DESCENDING,
       /** Contains index. Can be used for ArrayContains and ArrayContainsAny */
       CONTAINS
     }
@@ -57,24 +60,25 @@ public final class FieldIndex {
   private final String collectionGroup;
   private final int indexId;
   private final List<Segment> segments;
-  private final SnapshotVersion version;
+  private final SnapshotVersion updateTime;
 
   public FieldIndex(String collectionGroup, int indexId) {
     this.collectionGroup = collectionGroup;
     this.segments = new ArrayList<>();
     this.indexId = indexId;
-    this.version = SnapshotVersion.NONE;
+    this.updateTime = SnapshotVersion.NONE;
   }
 
   public FieldIndex(String collectionId) {
     this(collectionId, -1);
   }
 
-  FieldIndex(String collectionGroup, int indexId, List<Segment> segments, SnapshotVersion version) {
+  FieldIndex(
+      String collectionGroup, int indexId, List<Segment> segments, SnapshotVersion updateTime) {
     this.collectionGroup = collectionGroup;
     this.segments = segments;
     this.indexId = indexId;
-    this.version = version;
+    this.updateTime = updateTime;
   }
 
   /** The collection ID this index applies to. */
@@ -98,40 +102,48 @@ public final class FieldIndex {
     return segments.size();
   }
 
-  public SnapshotVersion getVersion() {
-    return version;
+  /**
+   * Returns the latest read time version that has been indexed by Firestore for this field index.
+   */
+  public SnapshotVersion getUpdateTime() {
+    return updateTime;
   }
 
-  public Iterable<Segment> getDirectionalSegments() {
+  public List<Segment> getDirectionalSegments() {
     List<Segment> filteredSegments = new ArrayList<>();
     for (Segment segment : segments) {
-      if (segment.getKind().equals(Segment.Kind.ORDERED)) {
+      if (!segment.getKind().equals(Segment.Kind.CONTAINS)) {
         filteredSegments.add(segment);
       }
     }
     return filteredSegments;
   }
 
-  public Iterable<Segment> getArraySegments() {
-    List<Segment> filteredSegments = new ArrayList<>();
+  public @Nullable Segment getArraySegment() {
     for (Segment segment : segments) {
       if (segment.getKind().equals(Segment.Kind.CONTAINS)) {
-        filteredSegments.add(segment);
+        // Firestore queries can only have a single ArrayContains/ArrayContainsAny statements.
+        return segment;
       }
     }
-    return filteredSegments;
+    return null;
   }
 
   /** Returns a new field index with additional index segment. */
   public FieldIndex withAddedField(FieldPath fieldPath, Segment.Kind kind) {
     List<Segment> newSegments = new ArrayList<>(segments);
     newSegments.add(new AutoValue_FieldIndex_Segment(fieldPath, kind));
-    return new FieldIndex(collectionGroup, indexId, newSegments, version);
+    return new FieldIndex(collectionGroup, indexId, newSegments, updateTime);
   }
 
   /** Returns a new field index with the updated version. */
-  public FieldIndex withVersion(SnapshotVersion version) {
-    return new FieldIndex(collectionGroup, indexId, segments, version);
+  public FieldIndex withUpdateTime(SnapshotVersion updateTime) {
+    return new FieldIndex(collectionGroup, indexId, segments, updateTime);
+  }
+
+  /** Returns a new field index with the provided index id. */
+  public FieldIndex withIndexId(int indexId) {
+    return new FieldIndex(collectionGroup, indexId, segments, updateTime);
   }
 
   @Override
@@ -142,7 +154,7 @@ public final class FieldIndex {
     FieldIndex fieldIndex = (FieldIndex) o;
 
     if (!segments.equals(fieldIndex.segments)) return false;
-    if (!version.equals(fieldIndex.version)) return false;
+    if (!updateTime.equals(fieldIndex.updateTime)) return false;
     return collectionGroup.equals(fieldIndex.collectionGroup);
   }
 
@@ -150,14 +162,14 @@ public final class FieldIndex {
   public int hashCode() {
     int result = collectionGroup.hashCode();
     result = 31 * result + segments.hashCode();
-    result = 31 * result + version.hashCode();
+    result = 31 * result + updateTime.hashCode();
     return result;
   }
 
   @Override
   public String toString() {
     return String.format(
-        "FieldIndex{collectionGroup='%s', segments=%s, version=%s}",
-        collectionGroup, segments, version);
+        "FieldIndex{collectionGroup='%s', segments=%s, updateTime=%s}",
+        collectionGroup, segments, updateTime);
   }
 }

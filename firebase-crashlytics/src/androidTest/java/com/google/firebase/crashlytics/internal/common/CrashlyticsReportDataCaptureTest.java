@@ -14,9 +14,15 @@
 
 package com.google.firebase.crashlytics.internal.common;
 
+import static com.google.firebase.crashlytics.internal.DevelopmentPlatformProvider.UNITY_PLATFORM;
 import static com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.GENERATOR;
 import static com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.GENERATOR_TYPE;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -31,10 +37,10 @@ import android.os.BatteryManager;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.crashlytics.internal.DevelopmentPlatformProvider;
 import com.google.firebase.crashlytics.internal.model.CrashlyticsReport;
 import com.google.firebase.crashlytics.internal.model.CrashlyticsReport.Session.Event.Application.Execution;
 import com.google.firebase.crashlytics.internal.stacktrace.StackTraceTrimmingStrategy;
-import com.google.firebase.crashlytics.internal.unity.UnityVersionProvider;
 import com.google.firebase.installations.FirebaseInstallationsApi;
 import java.util.List;
 import org.junit.Before;
@@ -46,13 +52,15 @@ import org.mockito.MockitoAnnotations;
 @RunWith(AndroidJUnit4.class)
 public class CrashlyticsReportDataCaptureTest {
 
+  private Context context = getContext();
+  private IdManager idManager;
   private CrashlyticsReportDataCapture dataCapture;
   private long timestamp;
   private String eventType;
   private int eventThreadImportance;
   private int maxChainedExceptions;
 
-  @Mock private UnityVersionProvider unityVersionProvider;
+  @Mock private DevelopmentPlatformProvider developmentPlatformProvider;
 
   @Mock private StackTraceTrimmingStrategy stackTraceTrimmingStrategy;
 
@@ -64,41 +72,53 @@ public class CrashlyticsReportDataCaptureTest {
     when(installationsApiMock.getId()).thenReturn(Tasks.forResult("installId"));
     when(stackTraceTrimmingStrategy.getTrimmedStackTrace(any(StackTraceElement[].class)))
         .thenAnswer(i -> i.getArguments()[0]);
-    final Context context = getContext();
-    final IdManager idManager =
+    context = getContext();
+    idManager =
         new IdManager(
             context,
             context.getPackageName(),
             installationsApiMock,
             DataCollectionArbiterTest.MOCK_ARBITER_ENABLED);
-    final AppData appData =
-        AppData.create(context, idManager, "googleAppId", "buildId", unityVersionProvider);
-    dataCapture =
-        new CrashlyticsReportDataCapture(context, idManager, appData, stackTraceTrimmingStrategy);
     timestamp = System.currentTimeMillis();
     eventType = "crash";
     eventThreadImportance = 4;
     maxChainedExceptions = 8;
+    initDataCapture();
+  }
+
+  private void initDataCapture() throws Exception {
+    AppData appData =
+        AppData.create(context, idManager, "googleAppId", "buildId", developmentPlatformProvider);
+    dataCapture =
+        new CrashlyticsReportDataCapture(context, idManager, appData, stackTraceTrimmingStrategy);
   }
 
   @Test
-  public void testCaptureReport_containsUnityVersionInDeveloperPlatformFieldsWhenAvailable() {
+  public void testCaptureReport_containsUnityVersionInDeveloperPlatformFieldsWhenAvailable()
+      throws Exception {
     final String expectedUnityVersion = "1.0.0";
-    when(unityVersionProvider.getUnityVersion()).thenReturn(expectedUnityVersion);
+    when(developmentPlatformProvider.getDevelopmentPlatform()).thenReturn(UNITY_PLATFORM);
+    when(developmentPlatformProvider.getDevelopmentPlatformVersion())
+        .thenReturn(expectedUnityVersion);
+    initDataCapture();
 
     final CrashlyticsReport report = dataCapture.captureReportData("sessionId", 0);
 
-    assertEquals("Unity", report.getSession().getApp().getDevelopmentPlatform());
+    assertNotNull(report.getSession());
+    assertEquals(UNITY_PLATFORM, report.getSession().getApp().getDevelopmentPlatform());
     assertEquals(
         expectedUnityVersion, report.getSession().getApp().getDevelopmentPlatformVersion());
   }
 
   @Test
-  public void testCaptureReport_containsNoDeveloperPlatformFieldsWhenUnityIsMissing() {
-    when(unityVersionProvider.getUnityVersion()).thenReturn(null);
+  public void testCaptureReport_containsNoDeveloperPlatformFieldsWhenUnityIsMissing()
+      throws Exception {
+    when(developmentPlatformProvider.getDevelopmentPlatform()).thenReturn(null);
+    initDataCapture();
 
     final CrashlyticsReport report = dataCapture.captureReportData("sessionId", 0);
 
+    assertNotNull(report.getSession());
     assertNull(report.getSession().getApp().getDevelopmentPlatform());
     assertNull(report.getSession().getApp().getDevelopmentPlatformVersion());
   }
