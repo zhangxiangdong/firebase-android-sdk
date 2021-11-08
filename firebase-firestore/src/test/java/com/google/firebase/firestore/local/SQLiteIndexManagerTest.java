@@ -606,14 +606,14 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
   @Test
   public void testCollectionGroupUpdateTimesCanBeUpdated() {
     SQLiteIndexManager sqLiteIndexManager = (SQLiteIndexManager) indexManager;
-    sqLiteIndexManager.setCollectionGroupUpdateTime("coll1", new Timestamp(30, 0));
-    sqLiteIndexManager.setCollectionGroupUpdateTime("coll2", new Timestamp(30, 50));
+    sqLiteIndexManager.updateCollectionGroupSequenceNumber("coll1", 1);
+    sqLiteIndexManager.updateCollectionGroupSequenceNumber("coll2", 2);
     List<String> orderedCollectionGroups =
         getCollectionGroupsOrderByUpdateTime((SQLitePersistence) getPersistence());
     List<String> expected = Arrays.asList("coll1", "coll2");
     assertEquals(expected, orderedCollectionGroups);
 
-    sqLiteIndexManager.setCollectionGroupUpdateTime("coll1", new Timestamp(50, 0));
+    sqLiteIndexManager.updateCollectionGroupSequenceNumber("coll1", 3);
     orderedCollectionGroups =
         getCollectionGroupsOrderByUpdateTime((SQLitePersistence) getPersistence());
     expected = Arrays.asList("coll2", "coll1");
@@ -684,7 +684,7 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
         .query(
             "SELECT collection_group "
                 + "FROM collection_group_update_times "
-                + "ORDER BY update_time_seconds, update_time_nanos")
+                + "ORDER BY sequence_number")
         .forEach(
             row -> {
               orderedCollectionGroups.add(row.getString(0));

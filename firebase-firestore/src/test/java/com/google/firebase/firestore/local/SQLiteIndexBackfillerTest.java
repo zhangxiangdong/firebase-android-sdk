@@ -23,7 +23,6 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertNull;
 
-import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.index.IndexEntry;
 import com.google.firebase.firestore.model.FieldIndex;
@@ -157,9 +156,9 @@ public class SQLiteIndexBackfillerTest {
     addFieldIndex("coll1", "foo");
     addFieldIndex("coll2", "foo");
     addFieldIndex("coll3", "foo");
-    addCollectionGroup("coll1", new Timestamp(30, 0));
-    addCollectionGroup("coll2", new Timestamp(30, 30));
-    addCollectionGroup("coll3", new Timestamp(10, 0));
+    addCollectionGroup("coll1", 2);
+    addCollectionGroup("coll2", 3);
+    addCollectionGroup("coll3", 1);
     addDoc("coll1/docA", "foo", version(10, 0));
     addDoc("coll2/docA", "foo", version(10, 0));
     addDoc("coll3/docA", "foo", version(10, 0));
@@ -182,8 +181,8 @@ public class SQLiteIndexBackfillerTest {
     // be processed ahead of the other collection groups.
     addFieldIndex("coll1", "foo");
     addFieldIndex("coll2", "foo");
-    addCollectionGroup("coll1", new Timestamp(1, 0));
-    addCollectionGroup("coll2", new Timestamp(2, 0));
+    addCollectionGroup("coll1", 1);
+    addCollectionGroup("coll2", 2);
     addFieldIndex("coll3", "foo");
 
     IndexBackfiller.Results results = backfiller.backfill(localDocumentsView);
@@ -203,7 +202,7 @@ public class SQLiteIndexBackfillerTest {
     backfiller.setMaxIndexEntriesToProcess(3);
     addFieldIndex("coll1", "foo");
     addFieldIndex("coll2", "foo");
-    addCollectionGroup("coll1", new Timestamp(1, 0));
+    addCollectionGroup("coll1", 1);
     addDoc("coll1/docA", "foo", version(10, 0));
     addDoc("coll1/docB", "foo", version(10, 0));
     addDoc("coll2/docA", "foo", version(10, 0));
@@ -256,8 +255,8 @@ public class SQLiteIndexBackfillerTest {
             .withUpdateTime(readTime));
   }
 
-  private void addCollectionGroup(String collectionGroup, Timestamp updateTime) {
-    indexManager.setCollectionGroupUpdateTime(collectionGroup, updateTime);
+  private void addCollectionGroup(String collectionGroup, int sequenceNumber) {
+    indexManager.updateCollectionGroupSequenceNumber(collectionGroup, sequenceNumber);
   }
 
   /** Creates a document and adds it to the RemoteDocumentCache. */

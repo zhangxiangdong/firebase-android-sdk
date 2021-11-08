@@ -22,7 +22,7 @@ import static java.lang.Math.max;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import com.google.firebase.Timestamp;
+
 import com.google.firebase.database.collection.ImmutableSortedMap;
 import com.google.firebase.firestore.core.Bound;
 import com.google.firebase.firestore.core.FieldFilter;
@@ -55,6 +55,7 @@ import java.util.Set;
 /** A persisted implementation of IndexManager. */
 final class SQLiteIndexManager implements IndexManager {
   private static final String TAG = SQLiteIndexManager.class.getSimpleName();
+  private static final int NEW_COLLECTION_GROUP_SEQUENCE_NUMBER = 0;
 
   /**
    * An in-memory copy of the index entries we've already written since the SDK launched. Used to
@@ -124,7 +125,7 @@ final class SQLiteIndexManager implements IndexManager {
         index.getUpdateTime().getTimestamp().getNanoseconds());
 
     // TODO(indexing): Use a 0-counter rather than the timestamp.
-    setCollectionGroupUpdateTime(index.getCollectionGroup(), SnapshotVersion.NONE.getTimestamp());
+    updateCollectionGroupSequenceNumber(index.getCollectionGroup(), NEW_COLLECTION_GROUP_SEQUENCE_NUMBER);
   }
 
   private void updateFieldIndex(FieldIndex index) {
@@ -145,16 +146,15 @@ final class SQLiteIndexManager implements IndexManager {
   }
 
   /** Returns the next collection group to update. */
-  // TODO(indexing): Use a counter rather than the starting timestamp.
-  public @Nullable String getNextCollectionGroupToUpdate(Timestamp startingTimestamp) {
+  public @Nullable String getNextCollectionGroupToUpdate(int currentMaxSequenceNumber) {
     final String[] nextCollectionGroup = {null};
     db.query(
             "SELECT collection_group "
                 + "FROM collection_group_update_times "
-                + "WHERE update_time_seconds <= ? AND update_time_nanos <= ?"
-                + "ORDER BY update_time_seconds, update_time_nanos "
+                  + "WHERE sequence_number <= ? "
+                  + "ORDER BY sequence_number "
                 + "LIMIT 1")
-        .binding(startingTimestamp.getSeconds(), startingTimestamp.getNanoseconds())
+        .binding(currentMaxSequenceNumber)
         .firstValue(
             row -> {
               nextCollectionGroup[0] = row.getString(0);
@@ -168,7 +168,7 @@ final class SQLiteIndexManager implements IndexManager {
     // Store that this collection group will updated.
     // TODO(indexing): Store progress with a counter rather than a timestamp. If using a timestamp,
     // use the read time of the last document read in the loop.
-    setCollectionGroupUpdateTime(nextCollectionGroup[0], Timestamp.now());
+    updateCollectionGroupSequenceNumber(nextCollectionGroup[0], getMaxCollectionGroupSequenceNumber()+1);
 
     return nextCollectionGroup[0];
   }
@@ -207,8 +207,6 @@ final class SQLiteIndexManager implements IndexManager {
       }
     }
 
-    // TODO(indexing): Use RemoteDocumentCache's readTime version rather than the document version.
-    // This will require plumbing out the RDC's readTime into the IndexBackfiller.
     for (FieldIndex updatedFieldIndex : updatedFieldIndexes.values()) {
       updateFieldIndex(updatedFieldIndex);
     }
@@ -639,13 +637,17 @@ final class SQLiteIndexManager implements IndexManager {
   }
 
   @VisibleForTesting
-  void setCollectionGroupUpdateTime(String collectionGroup, Timestamp updateTime) {
+  void updateCollectionGroupSequenceNumber(String collectionGroup, int sequenceNumber) {
     db.execute(
         "INSERT OR REPLACE INTO collection_group_update_times "
-            + "(collection_group, update_time_seconds, update_time_nanos) "
-            + "VALUES (?, ?, ?)",
+            + "(collection_group, seqence_number) "
+            + "VALUES (?, ?)",
         collectionGroup,
-        updateTime.getSeconds(),
-        updateTime.getNanoseconds());
+        sequenceNumber);
+  }
+
+  int getMaxCollectionGroupSequenceNumber() {
+      return db.query("SELECT MAX(sequence_counter) FROM collection_group_update_times")
+            .firstValue(input -> input.isNull(0) ? 0 : input.getInt(0));
   }
 }

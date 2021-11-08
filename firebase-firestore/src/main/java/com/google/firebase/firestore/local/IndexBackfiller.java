@@ -130,11 +130,11 @@ public class IndexBackfiller {
   /** Writes index entries until the cap is reached. Returns the number of entries written. */
   private int writeIndexEntries(LocalDocumentsView localDocumentsView) {
     int totalEntriesWrittenCount = 0;
-    Timestamp startingTimestamp = Timestamp.now();
+    int currentMaxSequenceNumber = indexManager.getMaxCollectionGroupSequenceNumber();
 
     while (totalEntriesWrittenCount < maxIndexEntriesToProcess) {
       int entriesRemainingUnderCap = maxIndexEntriesToProcess - totalEntriesWrittenCount;
-      String collectionGroup = indexManager.getNextCollectionGroupToUpdate(startingTimestamp);
+      String collectionGroup = indexManager.getNextCollectionGroupToUpdate(currentMaxSequenceNumber);
       if (collectionGroup == null) {
         break;
       }
