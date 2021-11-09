@@ -39,6 +39,7 @@ import com.google.firebase.firestore.core.ActivityScope;
 import com.google.firebase.firestore.core.AsyncEventListener;
 import com.google.firebase.firestore.core.DatabaseInfo;
 import com.google.firebase.firestore.core.FirestoreClient;
+import com.google.firebase.firestore.local.LruGarbageCollector;
 import com.google.firebase.firestore.local.SQLitePersistence;
 import com.google.firebase.firestore.model.DatabaseId;
 import com.google.firebase.firestore.model.FieldIndex;
@@ -762,6 +763,10 @@ public class FirebaseFirestore {
 
   UserDataReader getUserDataReader() {
     return userDataReader;
+  }
+
+  LruGarbageCollector.GCScheduler getGC() {
+    return client.getGC();
   }
 
   /**

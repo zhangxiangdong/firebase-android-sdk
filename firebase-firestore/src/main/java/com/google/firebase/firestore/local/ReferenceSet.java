@@ -16,6 +16,8 @@ package com.google.firebase.firestore.local;
 
 import static java.util.Collections.emptyList;
 
+import android.util.Log;
+
 import com.google.firebase.database.collection.ImmutableSortedSet;
 import com.google.firebase.firestore.model.DocumentKey;
 import java.util.Iterator;
@@ -61,12 +63,14 @@ public class ReferenceSet {
   /** Add references to the given document keys for the given ID. */
   public void addReferences(ImmutableSortedSet<DocumentKey> keys, int targetOrBatchId) {
     for (DocumentKey key : keys) {
+      Log.w("Reference", "Adding reference " + key);
       addReference(key, targetOrBatchId);
     }
   }
 
   /** Removes a reference to the given document key for the given ID. */
   public void removeReference(DocumentKey key, int targetOrBatchId) {
+    Log.w("Reference", "Removing reference " + key);
     removeReference(new DocumentReference(key, targetOrBatchId));
   }
 

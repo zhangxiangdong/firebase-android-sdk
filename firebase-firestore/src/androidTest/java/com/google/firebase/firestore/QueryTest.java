@@ -30,8 +30,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import android.os.StrictMode;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.gms.tasks.Task;
 import com.google.common.collect.Lists;
@@ -44,7 +42,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,8 +55,46 @@ public class QueryTest {
   public void tearDown() {
     IntegrationTestUtil.tearDown();
   }
-  @Rule
-  public Timeout timeout = new Timeout(1200, TimeUnit.SECONDS);
+
+  @Rule public Timeout timeout = new Timeout(1200, TimeUnit.SECONDS);
+
+  @Test
+  public void testGCDemo() {
+    CollectionReference collection =
+        testCollectionWithDocs(
+            map(
+                "a", map("k", "a"),
+                "b", map("k", "b"),
+                "c", map("k", "c"),
+                "d", map("k", "d"),
+                "e", map("k", "e"),
+                "f", map("k", "f"),
+                "g", map("k", "g"),
+                "h", map("k", "h"),
+                "i", map("k", "i"),
+                "j", map("k", "j")));
+
+    FirebaseFirestore db = collection.firestore;
+
+    Query query = collection.whereLessThan("k", "d").orderBy("k");
+    EventAccumulator<QuerySnapshot> accumulator = new EventAccumulator<>();
+    ListenerRegistration registration = query.addSnapshotListener(accumulator.listener());
+    QuerySnapshot set = accumulator.awaitRemoteEvent();
+    List<Map<String, Object>> data = querySnapshotToValues(set);
+    assertEquals(asList(map("k", "a"), map("k", "b"), map("k", "c")), data);
+
+    // Run GC, this should remove all documents that are not in the active query.
+    waitFor(db.getGC().runGC());
+
+    // Unlisten
+    registration.remove();
+
+    // Run GC again, this should remove all documents.
+    waitFor(db.getGC().runGC());
+
+    // Query offline to see the result is empty now.
+    assertEquals(asList(), querySnapshotToValues(waitFor(query.get(Source.CACHE))));
+  }
 
   @Test
   public void testDemo() {
@@ -95,10 +130,12 @@ public class QueryTest {
     waitFor(db.enableNetwork());
 
     // Another update via transaction
-    waitFor(db.runTransaction(transaction -> {
-      transaction.update(collection.document("c"), map("k", "b+"));
-      return null;
-    }));
+    waitFor(
+        db.runTransaction(
+            transaction -> {
+              transaction.update(collection.document("c"), map("k", "b+"));
+              return null;
+            }));
 
     data = querySnapshotToValues(accumulator.awaitRemoteEvent());
     assertEquals(asList(map("k", "b+"), map("k", "b+")), data);

@@ -34,6 +34,7 @@ import com.google.firebase.firestore.bundle.NamedQuery;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.local.IndexBackfiller;
 import com.google.firebase.firestore.local.LocalStore;
+import com.google.firebase.firestore.local.LruGarbageCollector;
 import com.google.firebase.firestore.local.Persistence;
 import com.google.firebase.firestore.local.QueryResult;
 import com.google.firebase.firestore.local.Scheduler;
@@ -341,5 +342,9 @@ public final class FirestoreClient {
     if (this.isTerminated()) {
       throw new IllegalStateException("The client has already been terminated");
     }
+  }
+
+  public LruGarbageCollector.GCScheduler getGC() {
+    return (LruGarbageCollector.GCScheduler) gcScheduler;
   }
 }

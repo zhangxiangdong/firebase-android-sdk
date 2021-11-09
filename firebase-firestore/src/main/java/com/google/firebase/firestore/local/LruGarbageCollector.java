@@ -16,7 +16,7 @@ package com.google.firebase.firestore.local;
 
 import android.util.SparseArray;
 import androidx.annotation.Nullable;
-import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.core.ListenSequence;
 import com.google.firebase.firestore.util.AsyncQueue;
 import com.google.firebase.firestore.util.Logger;
@@ -33,8 +33,8 @@ public class LruGarbageCollector {
   private static final long REGULAR_GC_DELAY_MS = TimeUnit.MINUTES.toMillis(5);
 
   public static class Params {
-    private static final long COLLECTION_DISABLED = FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED;
-    private static final long DEFAULT_CACHE_SIZE_BYTES = 100 * 1024 * 1024; // 100mb
+    private static final long COLLECTION_DISABLED = 0;
+    private static final long DEFAULT_CACHE_SIZE_BYTES = 1024; // 1KB
     /**
      * The following two constants are estimates for how we want to tune the garbage collector. If
      * we encounter a large cache, we don't want to spend a large chunk of time GCing all of it, we
@@ -42,7 +42,7 @@ public class LruGarbageCollector {
      * everything that we possibly could, as our thesis is that recently used items are more likely
      * to be used again.
      */
-    private static final int DEFAULT_COLLECTION_PERCENTILE = 10;
+    private static final int DEFAULT_COLLECTION_PERCENTILE = 100;
 
     private static final int DEFAULT_MAX_SEQUENCE_NUMBERS_TO_COLLECT = 1000;
 
@@ -58,7 +58,7 @@ public class LruGarbageCollector {
     }
 
     public static Params WithCacheSizeBytes(long cacheSizeBytes) {
-      return new Params(cacheSizeBytes, 10, 1000);
+      return new Params(cacheSizeBytes, 100, 1000);
     }
 
     final long minBytesThreshold;
@@ -66,7 +66,7 @@ public class LruGarbageCollector {
     final int maximumSequenceNumbersToCollect;
 
     Params(long minBytesThreshold, int percentileToCollect, int maximumSequenceNumbersToCollect) {
-      this.minBytesThreshold = minBytesThreshold;
+      this.minBytesThreshold = 1000; // 1KB
       this.percentileToCollect = percentileToCollect;
       this.maximumSequenceNumbersToCollect = maximumSequenceNumbersToCollect;
     }
@@ -115,7 +115,7 @@ public class LruGarbageCollector {
     private final AsyncQueue asyncQueue;
     private final LocalStore localStore;
     private boolean hasRun = false;
-    @Nullable private AsyncQueue.DelayedTask gcTask;
+    @Nullable private Task<Void> gcTask;
 
     public GCScheduler(AsyncQueue asyncQueue, LocalStore localStore) {
       this.asyncQueue = asyncQueue;
@@ -124,29 +124,19 @@ public class LruGarbageCollector {
 
     @Override
     public void start() {
-      if (params.minBytesThreshold != Params.COLLECTION_DISABLED) {
-        scheduleGC();
-      }
+      if (params.minBytesThreshold != Params.COLLECTION_DISABLED) {}
     }
 
     @Override
     public void stop() {
-      if (gcTask != null) {
-        gcTask.cancel();
-      }
+      if (gcTask != null) {}
     }
 
-    private void scheduleGC() {
-      long delay = hasRun ? REGULAR_GC_DELAY_MS : INITIAL_GC_DELAY_MS;
-      gcTask =
-          asyncQueue.enqueueAfterDelay(
-              AsyncQueue.TimerId.GARBAGE_COLLECTION,
-              delay,
-              () -> {
-                localStore.collectGarbage(LruGarbageCollector.this);
-                hasRun = true;
-                scheduleGC();
-              });
+    public Task<Void> runGC() {
+      return asyncQueue.enqueue(
+          () -> {
+            localStore.collectGarbage(LruGarbageCollector.this);
+          });
     }
   }
 
