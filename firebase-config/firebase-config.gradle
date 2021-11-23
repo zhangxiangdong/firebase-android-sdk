@@ -36,6 +36,11 @@ android {
 
     sourceSets {
         androidTest.resources.srcDirs += ['src/androidTest/res']
+        main {
+            proto {
+                srcDir 'src/main/java/com/google/firebase/remoteconfig/proto'
+            }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -51,7 +56,7 @@ android {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.17.2"
+        artifact = "com.google.protobuf:protoc:$protocVersion"
     }
     plugins {
         grpc {
@@ -61,7 +66,9 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.builtins {
-                java { option 'lite' }
+                java {
+                    option 'lite'
+                }
             }
             task.plugins {
                 grpc { option 'lite' }
