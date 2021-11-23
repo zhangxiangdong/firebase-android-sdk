@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "proto.generated";
+option java_outer_classname = "RealTimeRemoteConfig";
+option objc_class_prefix = "RTRC";
+option java_generic_services = true;
+
+package remoteconfig;
+
+service RealTimeRCService {
+  rpc OpenFetchInvalidationStream(OpenFetchInvalidationStreamRequest) returns (stream OpenFetchInvalidationStreamResponse) {}
+}
+
+message OpenFetchInvalidationStreamRequest {
+  string project_id = 1;
+  string namespace = 2;
+  int64 last_known_version_number = 3;
+}
+
+message OpenFetchInvalidationStreamResponse {
+  bool update = 1;
+}
