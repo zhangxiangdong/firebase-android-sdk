@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A SQLite-backed instance of Persistence.
@@ -479,7 +480,7 @@ public final class SQLitePersistence extends Persistence {
     /**
      * Runs the query, calling the consumer once for each row in the results.
      *
-     * @param consumer A consumer that will receive the first row.
+     * @param consumer A consumer that will receive each row.
      * @return The number of rows processed
      */
     int forEach(Consumer<Cursor> consumer) {
@@ -488,6 +489,28 @@ public final class SQLitePersistence extends Persistence {
         while (cursor.moveToNext()) {
           ++rowsProcessed;
           consumer.accept(cursor);
+        }
+      }
+      return rowsProcessed;
+    }
+
+    /**
+     * Runs the query, calling the callback up to {@code limit times}. If the callback
+     * returns `true`, the result is considered accepted and counts towards the limit.
+     *
+     * @param callback A function that will receive each row.
+     * @param limit The number of items to process.
+     * @return The number of rows processed
+     */
+    int forEach(Function<Cursor, Boolean> callback, int limit) {
+      int rowsProcessed = 0;
+      int rowsAccepted = 0;
+      try (Cursor cursor = startQuery()) {
+        ++rowsProcessed;
+        while (rowsAccepted < limit && cursor.moveToNext()) {
+          if (callback.apply(cursor)) {
+            ++rowsAccepted;
+          }
         }
       }
       return rowsProcessed;

@@ -17,6 +17,7 @@ package com.google.firebase.firestore.local;
 import static com.google.firebase.firestore.util.Assert.fail;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
+import androidx.annotation.NonNull;
 import com.google.firebase.Timestamp;
 import com.google.firebase.database.collection.ImmutableSortedMap;
 import com.google.firebase.firestore.core.Query;
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
 
@@ -146,6 +148,7 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     Timestamp readTime = sinceReadTime.getTimestamp();
 
     BackgroundQueue backgroundQueue = new BackgroundQueue();
+    AtomicInteger rowsProcessed = new AtomicInteger();
 
     ImmutableSortedMap<DocumentKey, MutableDocument>[] matchingDocuments =
         (ImmutableSortedMap<DocumentKey, MutableDocument>[])
@@ -185,10 +188,11 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
           // path.
           ResourcePath path = EncodedPath.decodeResourcePath(row.getString(0));
           if (path.length() != immediateChildrenPathLength) {
-            return;
+            return true;
           }
 
-          // Store row values in array entries to provide the correct context inside the executor.
+          // Store row values in array entries to provide the correct context inside the
+          // executor.
           final byte[] rawDocument = row.getBlob(1);
           final int[] readTimeSeconds = {row.getInt(2)};
           final int[] readTimeNanos = {row.getInt(3)};
@@ -206,7 +210,9 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
                   }
                 }
               });
-        });
+
+          return shouldFetchMoreResults(query, rowsProcessed);
+        }, query.matchesAllDocumentsIgnoringLimit() && quer);
 
     try {
       backgroundQueue.drain();
@@ -215,6 +221,23 @@ final class SQLiteRemoteDocumentCache implements RemoteDocumentCache {
     }
 
     return matchingDocuments[0];
+  }
+
+  @NonNull
+  private Boolean shouldFetchMoreResults(Query query, AtomicInteger rowsProcessed) {
+    if (query.matchesAllDocuments()) {
+      // We post filter query results. Unless a query has no filters and no orderBy clauses,
+      // we always have to read all documents.
+      return true;
+    }
+
+    if (!query.hasLimitToFirst()) {
+      // Return all documents if there is no limit.
+      return true;
+    }
+
+    int documentsRead = rowsProcessed.incrementAndGet();
+    return documentsRead < query.getLimitToFirst();
   }
 
   @Override

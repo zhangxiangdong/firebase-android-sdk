@@ -160,12 +160,11 @@ public class IndexBackfiller {
   private int writeEntriesForCollectionGroup(
       LocalDocumentsView localDocumentsView, String collectionGroup, int entriesRemainingUnderCap) {
     Query query = new Query(ResourcePath.EMPTY, collectionGroup);
+    query = query.limitToFirst(entriesRemainingUnderCap);
 
     // Use the earliest readTime of all field indexes as the base readtime.
     SnapshotVersion earliestReadTime =
         getEarliestReadTime(indexManager.getFieldIndexes(collectionGroup));
-
-    // TODO(indexing): Use limit queries to only fetch the required number of entries.
     // TODO(indexing): Support mutation batch Ids when sorting and writing indexes.
     ImmutableSortedMap<DocumentKey, Document> documents =
         localDocumentsView.getDocumentsMatchingQuery(query, earliestReadTime);
