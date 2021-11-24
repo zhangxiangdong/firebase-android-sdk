@@ -161,6 +161,64 @@ public class ConfigFetchHandler {
   }
 
   /**
+   * Fetches from the backend if client is not currently throttled.
+   *
+   * <p>If a fetch request is made to the backend, updates the last fetch status, last successful
+   * fetch time and {@link BackoffMetadata} in {@link ConfigMetadataClient}.
+   */
+  public Task<FetchResponse> fetchIfNotThrottled() {
+    Date currentTime = new Date(clock.currentTimeMillis());
+
+    Task<FetchResponse> fetchResponseTask;
+
+    Date backoffEndTime = getBackoffEndTimeInMillis(currentTime);
+    if (backoffEndTime != null) {
+      // TODO(issues/260): Provide a way for users to check for throttled status so exceptions
+      // aren't the only way for users to determine if they're throttled.
+      fetchResponseTask =
+              Tasks.forException(
+                      new FirebaseRemoteConfigFetchThrottledException(
+                              createThrottledMessage(backoffEndTime.getTime() - currentTime.getTime()),
+                              backoffEndTime.getTime()));
+    } else {
+      Task<String> installationIdTask = firebaseInstallations.getId();
+      Task<InstallationTokenResult> installationAuthTokenTask =
+              firebaseInstallations.getToken(false);
+      fetchResponseTask =
+              Tasks.whenAllComplete(installationIdTask, installationAuthTokenTask)
+                      .continueWithTask(
+                              executor,
+                              (completedInstallationsTasks) -> {
+                                if (!installationIdTask.isSuccessful()) {
+                                  return Tasks.forException(
+                                          new FirebaseRemoteConfigClientException(
+                                                  "Firebase Installations failed to get installation ID for fetch.",
+                                                  installationIdTask.getException()));
+                                }
+
+                                if (!installationAuthTokenTask.isSuccessful()) {
+                                  return Tasks.forException(
+                                          new FirebaseRemoteConfigClientException(
+                                                  "Firebase Installations failed to get installation auth token for fetch.",
+                                                  installationAuthTokenTask.getException()));
+                                }
+
+                                String installationId = installationIdTask.getResult();
+                                String installationToken = installationAuthTokenTask.getResult().getToken();
+                                return fetchFromBackendAndCacheResponse(
+                                        installationId, installationToken, currentTime);
+                              });
+    }
+
+    return fetchResponseTask.continueWithTask(
+            executor,
+            (completedFetchTask) -> {
+              updateLastFetchStatusAndTime(completedFetchTask, currentTime);
+              return completedFetchTask;
+            });
+  }
+
+  /**
    * Fetches from the backend if the fetched configs cache has expired and the client is not
    * currently throttled.
    *
@@ -176,53 +234,7 @@ public class ConfigFetchHandler {
       return Tasks.forResult(FetchResponse.forLocalStorageUsed(currentTime));
     }
 
-    Task<FetchResponse> fetchResponseTask;
-
-    Date backoffEndTime = getBackoffEndTimeInMillis(currentTime);
-    if (backoffEndTime != null) {
-      // TODO(issues/260): Provide a way for users to check for throttled status so exceptions
-      // aren't the only way for users to determine if they're throttled.
-      fetchResponseTask =
-          Tasks.forException(
-              new FirebaseRemoteConfigFetchThrottledException(
-                  createThrottledMessage(backoffEndTime.getTime() - currentTime.getTime()),
-                  backoffEndTime.getTime()));
-    } else {
-      Task<String> installationIdTask = firebaseInstallations.getId();
-      Task<InstallationTokenResult> installationAuthTokenTask =
-          firebaseInstallations.getToken(false);
-      fetchResponseTask =
-          Tasks.whenAllComplete(installationIdTask, installationAuthTokenTask)
-              .continueWithTask(
-                  executor,
-                  (completedInstallationsTasks) -> {
-                    if (!installationIdTask.isSuccessful()) {
-                      return Tasks.forException(
-                          new FirebaseRemoteConfigClientException(
-                              "Firebase Installations failed to get installation ID for fetch.",
-                              installationIdTask.getException()));
-                    }
-
-                    if (!installationAuthTokenTask.isSuccessful()) {
-                      return Tasks.forException(
-                          new FirebaseRemoteConfigClientException(
-                              "Firebase Installations failed to get installation auth token for fetch.",
-                              installationAuthTokenTask.getException()));
-                    }
-
-                    String installationId = installationIdTask.getResult();
-                    String installationToken = installationAuthTokenTask.getResult().getToken();
-                    return fetchFromBackendAndCacheResponse(
-                        installationId, installationToken, currentTime);
-                  });
-    }
-
-    return fetchResponseTask.continueWithTask(
-        executor,
-        (completedFetchTask) -> {
-          updateLastFetchStatusAndTime(completedFetchTask, currentTime);
-          return completedFetchTask;
-        });
+    return fetchIfNotThrottled();
   }
 
   /**

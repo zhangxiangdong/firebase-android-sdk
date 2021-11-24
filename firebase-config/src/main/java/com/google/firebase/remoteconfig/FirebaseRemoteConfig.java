@@ -34,6 +34,9 @@ import com.google.firebase.remoteconfig.internal.ConfigFetchHandler.FetchRespons
 import com.google.firebase.remoteconfig.internal.ConfigGetParameterHandler;
 import com.google.firebase.remoteconfig.internal.ConfigMetadataClient;
 import com.google.firebase.remoteconfig.internal.DefaultsXmlParser;
+import com.google.firebase.remoteconfig.internal.RealTimeConfigStream;
+import com.google.firebase.remoteconfig.internal.RealTimeConfigStreamException;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -44,6 +47,8 @@ import java.util.concurrent.Executor;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import io.grpc.ConnectivityState;
 
 /**
  * Entry point for the Firebase Remote Config (FRC) API.
@@ -151,6 +156,7 @@ public class FirebaseRemoteConfig {
   private final ConfigGetParameterHandler getHandler;
   private final ConfigMetadataClient frcMetadata;
   private final FirebaseInstallationsApi firebaseInstallations;
+  private final RealTimeConfigStream realTimeConfigStream;
 
   /**
    * Firebase Remote Config constructor.
@@ -180,6 +186,7 @@ public class FirebaseRemoteConfig {
     this.fetchHandler = fetchHandler;
     this.getHandler = getHandler;
     this.frcMetadata = frcMetadata;
+    this.realTimeConfigStream = new RealTimeConfigStream(this.fetchHandler, 1L);
   }
 
   /**
@@ -539,6 +546,24 @@ public class FirebaseRemoteConfig {
           frcMetadata.clear();
           return null;
         });
+  }
+
+  /**
+   * Open method to start stream for Real Time. This is an async method; call and forget about it.
+   * */
+  @NonNull
+  public void startRealTimeStream() {
+    this.realTimeConfigStream.startStream();
+  }
+
+  @NonNull
+  public void endRealTimeStream() throws RealTimeConfigStreamException {
+    this.realTimeConfigStream.endStream();
+  }
+
+  @NonNull
+  public ConnectivityState realTimeStreamStatus() {
+    return this.realTimeConfigStream.getStreamState();
   }
 
   /**
