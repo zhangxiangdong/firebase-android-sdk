@@ -42,11 +42,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>Does {@link Component} dependency resolution and provides access to resolved {@link
  * Component}s via {@link #get(Class)} method.
  */
-public class ComponentRuntime extends AbstractComponentContainer implements ComponentLoader {
+public class ComponentRuntime implements ComponentContainer, ComponentLoader {
   private static final Provider<Set<Object>> EMPTY_PROVIDER = Collections::emptySet;
   private final Map<Component<?>, Provider<?>> components = new HashMap<>();
-  private final Map<Class<?>, Provider<?>> lazyInstanceMap = new HashMap<>();
-  private final Map<Class<?>, LazySet<?>> lazySetMap = new HashMap<>();
+  private final Map<Qualified<?>, Provider<?>> lazyInstanceMap = new HashMap<>();
+  private final Map<Qualified<?>, LazySet<?>> lazySetMap = new HashMap<>();
   private final List<Provider<ComponentRegistrar>> unprocessedRegistrarProviders;
   private final EventBus eventBus;
   private final AtomicReference<Boolean> eagerComponentsInitializedWith = new AtomicReference<>();
@@ -176,7 +176,7 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
       }
 
       Provider<?> provider = components.get(component);
-      for (Class<?> anInterface : component.getProvidedInterfaces()) {
+      for (Qualified<?> anInterface : component.getProvidedInterfaces()) {
         if (!lazyInstanceMap.containsKey(anInterface)) {
           lazyInstanceMap.put(anInterface, provider);
         } else {
@@ -195,7 +195,7 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
   /** Populates lazySetMap to make set components available for consumption via set dependencies. */
   private List<Runnable> processSetComponents() {
     ArrayList<Runnable> runnables = new ArrayList<>();
-    Map<Class<?>, Set<Provider<?>>> setIndex = new HashMap<>();
+    Map<Qualified<?>, Set<Provider<?>>> setIndex = new HashMap<>();
     for (Map.Entry<Component<?>, Provider<?>> entry : components.entrySet()) {
       Component<?> component = entry.getKey();
 
@@ -206,7 +206,7 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
 
       Provider<?> provider = entry.getValue();
 
-      for (Class<?> anInterface : component.getProvidedInterfaces()) {
+      for (Qualified<?> anInterface : component.getProvidedInterfaces()) {
         if (!setIndex.containsKey(anInterface)) {
           setIndex.put(anInterface, new HashSet<>());
         }
@@ -214,7 +214,7 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
       }
     }
 
-    for (Map.Entry<Class<?>, Set<Provider<?>>> entry : setIndex.entrySet()) {
+    for (Map.Entry<Qualified<?>, Set<Provider<?>>> entry : setIndex.entrySet()) {
       if (!lazySetMap.containsKey(entry.getKey())) {
         lazySetMap.put(entry.getKey(), LazySet.fromCollection(entry.getValue()));
       } else {
@@ -229,13 +229,13 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
 
   @Override
   @SuppressWarnings("unchecked")
-  public synchronized <T> Provider<T> getProvider(Class<T> anInterface) {
+  public <T> Provider<T> getProvider(Qualified<T> anInterface) {
     Preconditions.checkNotNull(anInterface, "Null interface requested.");
     return (Provider<T>) lazyInstanceMap.get(anInterface);
   }
 
   @Override
-  public <T> Deferred<T> getDeferred(Class<T> anInterface) {
+  public <T> Deferred<T> getDeferred(Qualified<T> anInterface) {
     Provider<T> provider = getProvider(anInterface);
     if (provider == null) {
       return OptionalProvider.empty();
@@ -248,7 +248,7 @@ public class ComponentRuntime extends AbstractComponentContainer implements Comp
 
   @Override
   @SuppressWarnings("unchecked")
-  public synchronized <T> Provider<Set<T>> setOfProvider(Class<T> anInterface) {
+  public <T> Provider<Set<T>> setOfProvider(Qualified<T> anInterface) {
     LazySet<?> provider = lazySetMap.get(anInterface);
     if (provider != null) {
       return (Provider<Set<T>>) (Provider<?>) provider;
