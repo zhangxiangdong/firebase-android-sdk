@@ -16,6 +16,7 @@ package com.google.firebase.firestore.local;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import androidx.annotation.Nullable;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
@@ -61,14 +62,15 @@ class MemoryIndexManager implements IndexManager {
 
   @Nullable
   @Override
-  public FieldIndex getFieldIndex(Target target) {
+  public FieldIndex getFieldIndex(Target target, @Nullable CompositeFilter andFilter) {
     // Field indices are not supported with memory persistence.
     return null;
   }
 
   @Override
   @Nullable
-  public Set<DocumentKey> getDocumentsMatchingTarget(FieldIndex fieldIndex, Target target) {
+  public Set<DocumentKey> getDocumentsMatchingTarget(
+      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter) {
     // Field indices are not supported with memory persistence.
     return Collections.emptySet();
   }
