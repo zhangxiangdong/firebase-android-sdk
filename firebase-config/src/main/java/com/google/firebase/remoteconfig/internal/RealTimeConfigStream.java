@@ -21,7 +21,7 @@ public class RealTimeConfigStream {
 
     private static final String HOST_NAME = "localhost";
     private static final int PORT_NUMBER = 50051;
-    private final ManagedChannel managedChannel;
+    private ManagedChannel managedChannel;
     private RealTimeRCServiceGrpc.RealTimeRCServiceStub asyncStub;
     private Context.CancellableContext cancellableContext;
     private final ConfigFetchHandler fetchHandler;
@@ -33,16 +33,19 @@ public class RealTimeConfigStream {
             ConfigFetchHandler fetchHandler,
             long fetchVersion
     ) {
-        this.managedChannel
-                = ManagedChannelBuilder.forTarget("10.0.2.2:50051")
-                .usePlaintext()
-                .defaultServiceConfig(makeServiceConfig())
-                .keepAliveWithoutCalls(true)
-                .build();
+        this.managedChannel = getManagedChannel();
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
         this.fetchVersion = fetchVersion;
         this.cancellableContext = null;
+    }
+
+    private ManagedChannel getManagedChannel() {
+        return ManagedChannelBuilder.forTarget("10.0.2.2:50051")
+                .usePlaintext()
+                .defaultServiceConfig(makeServiceConfig())
+                .keepAliveWithoutCalls(true)
+                .build();
     }
 
     // Create service config for stream.
@@ -67,14 +70,18 @@ public class RealTimeConfigStream {
 
     // Starts async stream and configures stream observer that will handle actions on stream.
     public void startStream() throws RealTimeConfigStreamException {
-        OpenFetchInvalidationStreamRequest request
-                = OpenFetchInvalidationStreamRequest.newBuilder()
-                .setLastKnownVersionNumber(this.fetchVersion)
-                .build();
         logger.log(Level.INFO, "Real Time stream is being started");
         if (this.cancellableContext == null) {
             this.cancellableContext = Context.current().withCancellation();
         }
+        if (this.managedChannel.isShutdown() || this.managedChannel.isTerminated()) {
+            this.managedChannel = getManagedChannel();
+        }
+
+        OpenFetchInvalidationStreamRequest request
+                = OpenFetchInvalidationStreamRequest.newBuilder()
+                .setLastKnownVersionNumber(this.fetchVersion)
+                .build();
         try {
             this.cancellableContext.run(
                     new Runnable() {
