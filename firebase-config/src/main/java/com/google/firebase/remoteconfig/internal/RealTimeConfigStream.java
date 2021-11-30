@@ -42,7 +42,7 @@ public class RealTimeConfigStream {
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
         this.fetchVersion = fetchVersion;
-        this.cancellableContext = Context.current().withCancellation();
+        this.cancellableContext = null;
     }
 
     // Create service config for stream.
@@ -72,6 +72,9 @@ public class RealTimeConfigStream {
                 .setLastKnownVersionNumber(this.fetchVersion)
                 .build();
         logger.log(Level.INFO, "Real Time stream is being started");
+        if (this.cancellableContext == null) {
+            this.cancellableContext = Context.current().withCancellation();
+        }
         try {
             this.cancellableContext.run(
                     new Runnable() {
@@ -120,6 +123,7 @@ public class RealTimeConfigStream {
         try {
             if (this.cancellableContext != null) {
                 this.cancellableContext.cancel(null);
+                this.cancellableContext = null;
             }
         } catch (Exception ex) {
             throw new RealTimeConfigStreamException("Can't close stream connection.", ex);
