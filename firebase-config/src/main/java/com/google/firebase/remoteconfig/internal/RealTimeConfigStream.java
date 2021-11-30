@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.grpc.ConnectivityState;
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.*;
@@ -18,10 +19,11 @@ import proto.generated.RealTimeRCServiceGrpc;
 
 public class RealTimeConfigStream {
 
-    private static final String HOST_NAME = "HOST_NAME";
-    private static final int PORT_NUMBER = 123;
+    private static final String HOST_NAME = "localhost";
+    private static final int PORT_NUMBER = 50051;
     private final ManagedChannel managedChannel;
     private RealTimeRCServiceGrpc.RealTimeRCServiceStub asyncStub;
+    private Context.CancellableContext cancellableContext;
     private final ConfigFetchHandler fetchHandler;
     private long fetchVersion;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
@@ -32,20 +34,23 @@ public class RealTimeConfigStream {
             long fetchVersion
     ) {
         this.managedChannel
-                = ManagedChannelBuilder.forAddress(HOST_NAME, PORT_NUMBER)
+                = ManagedChannelBuilder.forTarget("10.0.2.2:50051")
+                .usePlaintext()
                 .defaultServiceConfig(makeServiceConfig())
+                .keepAliveWithoutCalls(true)
                 .build();
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
         this.fetchVersion = fetchVersion;
+        this.cancellableContext = Context.current().withCancellation();
     }
 
     // Create service config for stream.
     private Map<String, Object> makeServiceConfig() {
         Map<String, Object> retryPolicy = new HashMap<>();
-        retryPolicy.put("maxAttempts", 5);
+        retryPolicy.put("maxAttempts", 5.0);
         retryPolicy.put("maxBackoff", "40s");
-        retryPolicy.put("backoffMultiplier", 2);
+        retryPolicy.put("backoffMultiplier", 2.0);
         retryPolicy.put("initialBackoff", "30s");
         retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
 
@@ -56,17 +61,29 @@ public class RealTimeConfigStream {
         methodConfig.put("retryPolicy", retryPolicy);
 
         HashMap<String, Object> serviceConfig = new HashMap<>();
-        serviceConfig.put("methodConfig", methodConfig);
+        serviceConfig.put("methodConfig", Arrays.<Object>asList(methodConfig));
         return serviceConfig;
     }
 
     // Starts async stream and configures stream observer that will handle actions on stream.
-    public void startStream() {
+    public void startStream() throws RealTimeConfigStreamException {
         OpenFetchInvalidationStreamRequest request
                 = OpenFetchInvalidationStreamRequest.newBuilder()
                 .setLastKnownVersionNumber(this.fetchVersion)
                 .build();
-        this.asyncStub.openFetchInvalidationStream(request, getResponseStreamObserver());
+        logger.log(Level.INFO, "Real Time stream is being started");
+        try {
+            this.cancellableContext.run(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            asyncStub.openFetchInvalidationStream(request, getResponseStreamObserver());
+                        }
+                    }
+            );
+        } catch (Exception ex) {
+            throw new RealTimeConfigStreamException("Can't start Real Time Stream.", ex);
+        }
     }
 
     private StreamObserver<OpenFetchInvalidationStreamResponse> getResponseStreamObserver() {
@@ -74,38 +91,55 @@ public class RealTimeConfigStream {
 
             @Override
             public void onNext(OpenFetchInvalidationStreamResponse openFetchInvalidationStreamResponse) {
+                logger.log(Level.INFO, "Received invalidation signal. Fetching new Config.");
                 // Fetch and cache response for future usage by developer.
                 Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
                 fetchTask.onSuccessTask((unusedFetchResponse) -> Tasks.forResult(null));
+                logger.info("Finished Fetching new updates.");
                 // Update fetch version based on response
             }
 
             @Override
             public void onError(Throwable throwable) {
                 // Log Exception being thrown
-                logger.log(Level.WARNING, "Real Time Stream has failed. Regular RC still functional." +
-                        "Please restart app to restart stream. Status: {0}", throwable.getCause());
+                logger.log(Level.WARNING, "Real Time Stream is closing. Regular Remote Config is still functional." +
+                        "Please restart app to restart stream. Message: " + throwable.toString(), throwable.getCause());
             }
 
             @Override
             public void onCompleted() {
                 // Gently close stream if closed from server side
                 logger.log(Level.INFO, "Real Time stream has closed from the server side");
-                managedChannel.shutdown();
+                cancellableContext.cancel(null);
             }
         };
     }
 
-    // Immediately end all streams.
-    public void endStream() throws RealTimeConfigStreamException {
+    // Immediately end stream connection.
+    public void endStreamConnection() throws RealTimeConfigStreamException {
         try {
-            this.managedChannel.shutdownNow();
-        } catch (Exception e) {
-            throw new RealTimeConfigStreamException("Can't close stream.", e);
+            if (this.cancellableContext != null) {
+                this.cancellableContext.cancel(null);
+            }
+        } catch (Exception ex) {
+            throw new RealTimeConfigStreamException("Can't close stream connection.", ex);
+        }
+    }
+
+    public void endStreamChannel() throws RealTimeConfigStreamException {
+        try {
+            if (this.managedChannel != null) {
+                this.managedChannel.shutdownNow();
+            }
+        } catch (Exception ex) {
+            throw new RealTimeConfigStreamException("Can't close stream channel.", ex);
         }
     }
 
     public ConnectivityState getStreamState() {
-        return this.managedChannel.getState(false);
+        if (this.managedChannel != null) {
+            return this.managedChannel.getState(false);
+        }
+        return ConnectivityState.SHUTDOWN;
     }
 }

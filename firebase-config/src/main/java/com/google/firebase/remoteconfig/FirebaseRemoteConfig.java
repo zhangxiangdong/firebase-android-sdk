@@ -48,6 +48,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.annotation.Nonnull;
+
 import io.grpc.ConnectivityState;
 
 /**
@@ -552,15 +554,29 @@ public class FirebaseRemoteConfig {
    * Open method to start stream for Real Time. This is an async method; call and forget about it.
    * */
   @NonNull
-  public void startRealTimeStream() {
+  public void startRealTimeStream() throws RealTimeConfigStreamException {
     this.realTimeConfigStream.startStream();
   }
 
+  /**
+   * Call to close stream connection. Leaves channel open so that connection can be reopened.
+   * */
   @NonNull
-  public void endRealTimeStream() throws RealTimeConfigStreamException {
-    this.realTimeConfigStream.endStream();
+  public void endRealTimeStreamConnection() throws RealTimeConfigStreamException {
+    this.realTimeConfigStream.endStreamConnection();
   }
 
+  /**
+   * Closes Real Time stream channel. Prevents more connections from being opened.
+   * */
+  @Nonnull
+  public void endRealTimeStreamChannel() throws RealTimeConfigStreamException {
+    this.realTimeConfigStream.endStreamChannel();
+  }
+
+  /**
+   * Retrieves state of Real Time connection.
+   * */
   @NonNull
   public ConnectivityState realTimeStreamStatus() {
     return this.realTimeConfigStream.getStreamState();
