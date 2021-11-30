@@ -36,7 +36,7 @@ import com.google.firebase.remoteconfig.internal.ConfigMetadataClient;
 import com.google.firebase.remoteconfig.internal.DefaultsXmlParser;
 import com.google.firebase.remoteconfig.internal.RealTimeConfigStream;
 import com.google.firebase.remoteconfig.internal.RealTimeConfigStreamException;
-
+import io.grpc.ConnectivityState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -48,9 +48,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import javax.annotation.Nonnull;
-
-import io.grpc.ConnectivityState;
 
 /**
  * Entry point for the Firebase Remote Config (FRC) API.
@@ -569,7 +566,7 @@ public class FirebaseRemoteConfig {
   /**
    * Closes Real Time stream channel. Prevents more connections from being opened.
    * */
-  @Nonnull
+  @NonNull
   public void endRealTimeStreamChannel() throws RealTimeConfigStreamException {
     this.realTimeConfigStream.endStreamChannel();
   }
