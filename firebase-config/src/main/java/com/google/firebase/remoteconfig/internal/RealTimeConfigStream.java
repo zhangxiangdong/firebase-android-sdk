@@ -71,22 +71,28 @@ public class RealTimeConfigStream {
     // Starts async stream and configures stream observer that will handle actions on stream.
     public void startStream() throws RealTimeConfigStreamException {
         logger.log(Level.INFO, "Real Time stream is being started");
+
+        // Check if context or channel have been closed and issue new resources if closed.
         if (this.cancellableContext == null) {
             this.cancellableContext = Context.current().withCancellation();
         }
         if (this.managedChannel.isShutdown() || this.managedChannel.isTerminated()) {
             this.managedChannel = getManagedChannel();
+            this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         }
 
+        // Create request.
         OpenFetchInvalidationStreamRequest request
                 = OpenFetchInvalidationStreamRequest.newBuilder()
                 .setLastKnownVersionNumber(this.fetchVersion)
                 .build();
         try {
+            // Wrap gRPC stream request in context to allow for graceful closing.
             this.cancellableContext.run(
                     new Runnable() {
                         @Override
                         public void run() {
+                            // Call to open async gRPC stream.
                             asyncStub.openFetchInvalidationStream(request, getResponseStreamObserver());
                         }
                     }
@@ -96,9 +102,11 @@ public class RealTimeConfigStream {
         }
     }
 
+    // Returns stream observer that directs how the stream should handle different scenarios.
     private StreamObserver<OpenFetchInvalidationStreamResponse> getResponseStreamObserver() {
         return new StreamObserver<OpenFetchInvalidationStreamResponse>() {
 
+            // What to do on every successful stream response.
             @Override
             public void onNext(OpenFetchInvalidationStreamResponse openFetchInvalidationStreamResponse) {
                 logger.log(Level.INFO, "Received invalidation signal. Fetching new Config.");
@@ -106,27 +114,29 @@ public class RealTimeConfigStream {
                 Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
                 fetchTask.onSuccessTask((unusedFetchResponse) -> Tasks.forResult(null));
                 logger.info("Finished Fetching new updates.");
-                // Update fetch version based on response
             }
 
+            // What to do on stream errors.
             @Override
             public void onError(Throwable throwable) {
                 // Log Exception being thrown
                 logger.log(Level.WARNING, "Real Time Stream is closing. Regular Remote Config is still functional." +
-                        "Please restart app to restart stream. Message: " + throwable.toString(), throwable.getCause());
+                        "Please restart stream. Message: " + throwable.toString(), throwable.getCause());
             }
 
+            // What to do when stream is closed.
             @Override
             public void onCompleted() {
-                // Gently close stream if closed from server side
+                // Gently close stream if closed from server side.
                 logger.log(Level.INFO, "Real Time stream has closed from the server side");
                 cancellableContext.cancel(null);
             }
         };
     }
 
-    // Immediately end stream connection.
+    // Immediately end stream connection. Allows for easy reopening without creating new resources.
     public void endStreamConnection() throws RealTimeConfigStreamException {
+        logger.info("Closing stream connections.");
         try {
             if (this.cancellableContext != null) {
                 this.cancellableContext.cancel(null);
@@ -137,7 +147,9 @@ public class RealTimeConfigStream {
         }
     }
 
+    // Permanent closing of gRPC stream. Closes channel and will require new channel and stub to reopen stream.
     public void endStreamChannel() throws RealTimeConfigStreamException {
+        logger.info("Closing stream channel.");
         try {
             if (this.managedChannel != null) {
                 this.managedChannel.shutdownNow();
@@ -147,6 +159,7 @@ public class RealTimeConfigStream {
         }
     }
 
+    // Retrieve state of current channel/stream.
     public ConnectivityState getStreamState() {
         if (this.managedChannel != null) {
             return this.managedChannel.getState(false);
