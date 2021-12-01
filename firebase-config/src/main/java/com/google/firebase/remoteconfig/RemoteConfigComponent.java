@@ -35,6 +35,8 @@ import com.google.firebase.remoteconfig.internal.ConfigGetParameterHandler;
 import com.google.firebase.remoteconfig.internal.ConfigMetadataClient;
 import com.google.firebase.remoteconfig.internal.ConfigStorageClient;
 import com.google.firebase.remoteconfig.internal.Personalization;
+import com.google.firebase.remoteconfig.internal.RealTimeConfigStream;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -153,6 +155,8 @@ public class RemoteConfigComponent {
     ConfigMetadataClient metadataClient = getMetadataClient(context, appId, namespace);
 
     ConfigGetParameterHandler getHandler = getGetHandler(activatedCacheClient, defaultsCacheClient);
+    ConfigFetchHandler configFetchHandler = getFetchHandler(namespace, fetchedCacheClient, metadataClient);
+    RealTimeConfigStream realTimeConfigStream = getRealTimeConfigStream(configFetchHandler);
     Personalization personalization =
         getPersonalization(firebaseApp, namespace, analyticsConnector);
     if (personalization != null) {
@@ -168,9 +172,10 @@ public class RemoteConfigComponent {
         fetchedCacheClient,
         activatedCacheClient,
         defaultsCacheClient,
-        getFetchHandler(namespace, fetchedCacheClient, metadataClient),
+        configFetchHandler,
         getHandler,
-        metadataClient);
+        metadataClient,
+           realTimeConfigStream);
   }
 
   @VisibleForTesting
@@ -185,7 +190,8 @@ public class RemoteConfigComponent {
       ConfigCacheClient defaultsClient,
       ConfigFetchHandler fetchHandler,
       ConfigGetParameterHandler getHandler,
-      ConfigMetadataClient metadataClient) {
+      ConfigMetadataClient metadataClient,
+      RealTimeConfigStream realTimeConfigStream) {
     if (!frcNamespaceInstances.containsKey(namespace)) {
       FirebaseRemoteConfig in =
           new FirebaseRemoteConfig(
@@ -199,7 +205,8 @@ public class RemoteConfigComponent {
               defaultsClient,
               fetchHandler,
               getHandler,
-              metadataClient);
+              metadataClient,
+                  realTimeConfigStream);
       in.startLoadingConfigsFromDisk();
       frcNamespaceInstances.put(namespace, in);
     }
@@ -246,6 +253,13 @@ public class RemoteConfigComponent {
         getFrcBackendApiClient(firebaseApp.getOptions().getApiKey(), namespace, metadataClient),
         metadataClient,
         this.customHeaders);
+  }
+
+  @VisibleForTesting
+  synchronized RealTimeConfigStream getRealTimeConfigStream(
+          ConfigFetchHandler configFetchHandler
+  ) {
+    return new RealTimeConfigStream(configFetchHandler);
   }
 
   private ConfigGetParameterHandler getGetHandler(

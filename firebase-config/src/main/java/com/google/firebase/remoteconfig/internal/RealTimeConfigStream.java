@@ -19,29 +19,27 @@ import proto.generated.RealTimeRCServiceGrpc;
 
 public class RealTimeConfigStream {
 
-    private static final String HOST_NAME = "localhost";
-    private static final int PORT_NUMBER = 50051;
+    private final String HOST_NAME = "10.0.2.2";
+    private final int PORT_NUMBER = 50051;
     private ManagedChannel managedChannel;
     private RealTimeRCServiceGrpc.RealTimeRCServiceStub asyncStub;
     private Context.CancellableContext cancellableContext;
     private final ConfigFetchHandler fetchHandler;
-    private long fetchVersion;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
 
 
     public RealTimeConfigStream(
-            ConfigFetchHandler fetchHandler,
-            long fetchVersion
+            ConfigFetchHandler fetchHandler
     ) {
         this.managedChannel = getManagedChannel();
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
-        this.fetchVersion = fetchVersion;
         this.cancellableContext = null;
     }
 
     private ManagedChannel getManagedChannel() {
-        return ManagedChannelBuilder.forTarget("10.0.2.2:50051")
+        return ManagedChannelBuilder
+                .forAddress(this.HOST_NAME, this.PORT_NUMBER)
                 .usePlaintext()
                 .defaultServiceConfig(makeServiceConfig())
                 .keepAliveWithoutCalls(true)
@@ -69,7 +67,7 @@ public class RealTimeConfigStream {
     }
 
     // Starts async stream and configures stream observer that will handle actions on stream.
-    public void startStream() throws RealTimeConfigStreamException {
+    public void startStream(long fetchVersion) throws RealTimeConfigStreamException {
         logger.log(Level.INFO, "Real Time stream is being started");
 
         // Check if context or channel have been closed and issue new resources if closed.
@@ -84,7 +82,7 @@ public class RealTimeConfigStream {
         // Create request.
         OpenFetchInvalidationStreamRequest request
                 = OpenFetchInvalidationStreamRequest.newBuilder()
-                .setLastKnownVersionNumber(this.fetchVersion)
+                .setLastKnownVersionNumber(fetchVersion)
                 .build();
         try {
             // Wrap gRPC stream request in context to allow for graceful closing.
@@ -122,6 +120,7 @@ public class RealTimeConfigStream {
                 // Log Exception being thrown
                 logger.log(Level.WARNING, "Real Time Stream is closing. Regular Remote Config is still functional." +
                         "Please restart stream. Message: " + throwable.toString(), throwable.getCause());
+
             }
 
             // What to do when stream is closed.

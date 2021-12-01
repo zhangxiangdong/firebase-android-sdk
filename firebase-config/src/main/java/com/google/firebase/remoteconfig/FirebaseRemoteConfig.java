@@ -173,7 +173,8 @@ public class FirebaseRemoteConfig {
       ConfigCacheClient defaultConfigsCache,
       ConfigFetchHandler fetchHandler,
       ConfigGetParameterHandler getHandler,
-      ConfigMetadataClient frcMetadata) {
+      ConfigMetadataClient frcMetadata,
+      RealTimeConfigStream realTimeConfigStream) {
     this.context = context;
     this.firebaseApp = firebaseApp;
     this.firebaseInstallations = firebaseInstallations;
@@ -185,7 +186,7 @@ public class FirebaseRemoteConfig {
     this.fetchHandler = fetchHandler;
     this.getHandler = getHandler;
     this.frcMetadata = frcMetadata;
-    this.realTimeConfigStream = new RealTimeConfigStream(this.fetchHandler, 1L);
+    this.realTimeConfigStream = realTimeConfigStream;
   }
 
   /**
@@ -548,11 +549,11 @@ public class FirebaseRemoteConfig {
   }
 
   /**
-   * Open method to start stream for Real Time. This is an async method; call and forget about it.
+   * Start stream for Real Time. This is an async method; call and forget about it.
    * */
   @NonNull
   public void startRealTimeStream() throws RealTimeConfigStreamException {
-    this.realTimeConfigStream.startStream();
+    this.realTimeConfigStream.startStream(1L);
   }
 
   /**
