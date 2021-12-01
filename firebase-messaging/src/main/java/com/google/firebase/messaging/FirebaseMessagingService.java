@@ -15,6 +15,7 @@ package com.google.firebase.messaging;
 
 import static com.google.firebase.messaging.Constants.TAG;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -27,6 +28,7 @@ import com.google.firebase.messaging.Constants.MessageTypes;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Base class for receiving messages from Firebase Cloud Messaging.
@@ -143,7 +145,18 @@ public class FirebaseMessagingService extends EnhancedIntentService {
    */
   @WorkerThread
   public void onNewToken(@NonNull String token) {}
-  ;
+
+  /**
+   * Determines whether sdk should post notification by itself or send to client app for processing.
+   *
+   * <p>Default behavior is for sdk to handle notifications when app is in background.
+   *
+   * @param message remote message
+   * @return true if sdk to post notification otherwise false.
+   */
+  public boolean shouldPostNotification(RemoteMessage message) {
+    return !DisplayNotification.isAppForeground(FirebaseMessagingService.this);
+  }
 
   /** @hide */
   @Override
@@ -212,19 +225,13 @@ public class FirebaseMessagingService extends EnhancedIntentService {
     // First remove any parameters that shouldn't be passed to the app
     // * The wakelock ID set by the WakefulBroadcastReceiver
     data.remove("androidx.content.wakelockid");
+    RemoteMessage remoteMessage = new RemoteMessage(data);
     if (NotificationParams.isNotification(data)) {
-      NotificationParams params = new NotificationParams(data);
-
-      ExecutorService executor = FcmExecutors.newNetworkIOExecutor();
-      DisplayNotification displayNotification = new DisplayNotification(this, params, executor);
-      try {
-        if (displayNotification.handleNotification()) {
-          // Notification was shown or it was a fake notification, finish
+      if (shouldPostNotification(remoteMessage)) {
+        if(postNotification(remoteMessage.getNotification())){
+          // Notification Message is handled/posted and no need to continue further.
           return;
         }
-      } finally {
-        // Ensures any executor threads are cleaned up
-        executor.shutdown();
       }
 
       // App is in the foreground, log and pass through to onMessageReceived below
@@ -233,6 +240,57 @@ public class FirebaseMessagingService extends EnhancedIntentService {
       }
     }
     onMessageReceived(new RemoteMessage(data));
+  }
+
+  /**
+   * Creates a notification object for displaying from the {@link RemoteMessage}.
+   *
+   * 3p developers can use this message to construct a notification from
+   * {@link FirebaseMessagingService#onMessageReceived(RemoteMessage)} and later they can do
+   * customizations if they want and can call
+   * {@link DisplayNotificationInfo#showNotification(Context)} to display the message.
+   *
+   * @param data {@link RemoteMessage} from which the notification to be created.
+   * @return instance of {@link DisplayNotificationInfo} for
+   * Notification message or {@null} for Data Message.
+   */
+  protected final DisplayNotificationInfo createNotification(RemoteMessage data){
+    if (data==null || data.getNotification()==null) {
+      return null;
+    }
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    DisplayNotification displayNotification =
+            new DisplayNotification(this, data.getNotification().getParams(), executor);
+    try {
+      // Notification was shown or it was a fake notification, finish
+
+      return displayNotification.createNotificationInfo();
+    } finally {
+      // Ensures any executor threads are cleaned up
+      executor.shutdown();
+    }
+  }
+
+  /**
+   * Posts notification to system notification tray.
+   *
+   * @param notification the notification source from which the actual system notification is
+   *     created.
+   * @return Returns true if the posting is a success. False otherwise.
+   */
+  protected final boolean postNotification(@NonNull RemoteMessage.Notification notification) {
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    DisplayNotification displayNotification =
+            new DisplayNotification(this, notification.getParams(), executor);
+    try {
+      // Notification was shown or it was a fake notification, finish
+
+      return displayNotification.handleNotification();
+    } finally {
+      // Ensures any executor threads are cleaned up
+      executor.shutdown();
+    }
   }
 
   private boolean alreadyReceivedMessage(String messageId) {

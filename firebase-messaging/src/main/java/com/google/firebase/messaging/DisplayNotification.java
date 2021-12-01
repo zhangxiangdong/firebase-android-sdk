@@ -57,7 +57,7 @@ class DisplayNotification {
     this.params = params;
   }
 
-  private boolean isAppForeground() {
+  static boolean isAppForeground(Context context) {
     KeyguardManager keyguardManager =
         (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
     if (keyguardManager.inKeyguardRestrictedInputMode()) {
@@ -97,19 +97,27 @@ class DisplayNotification {
    * <li>If the app is in the background, shows a notification and returns true.
    */
   boolean handleNotification() {
+    DisplayNotificationInfo notificationInfo = createNotificationInfo();
+    if(notificationInfo!=null) {
+      notificationInfo.showNotification(context);
+    }
+    return true;
+  }
+
+  /**
+   * creates a {@link DisplayNotificationInfo}
+   * @return instance of {@link DisplayNotificationInfo}
+   */
+  DisplayNotificationInfo createNotificationInfo() {
     if (params.getBoolean(MessageNotificationKeys.NO_UI)) {
-      return true; // Fake notification, nothing else to do
+      return null; // Fake notification, nothing else to do
     }
 
-    if (isAppForeground()) {
-      return false; // Needs to be passed to onMessageReceived
-    }
     ImageDownload imageDownload = startImageDownloadInBackground();
-    CommonNotificationBuilder.DisplayNotificationInfo notificationInfo =
-        CommonNotificationBuilder.createNotificationInfo(context, params);
-    waitForAndApplyImageDownload(notificationInfo.notificationBuilder, imageDownload);
-    showNotification(notificationInfo);
-    return true;
+    DisplayNotificationInfo notificationInfo =
+            CommonNotificationBuilder.createNotificationInfo(context, params);
+    waitForAndApplyImageDownload(notificationInfo.getNotificationBuilder(), imageDownload);
+    return notificationInfo;
   }
 
   @Nullable
@@ -164,16 +172,5 @@ class DisplayNotification {
        * when it is updated.
        */
     }
-  }
-
-  private void showNotification(CommonNotificationBuilder.DisplayNotificationInfo info) {
-    if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "Showing notification");
-    }
-
-    NotificationManager notificationManager =
-        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-
-    notificationManager.notify(info.tag, info.id, info.notificationBuilder.build());
   }
 }

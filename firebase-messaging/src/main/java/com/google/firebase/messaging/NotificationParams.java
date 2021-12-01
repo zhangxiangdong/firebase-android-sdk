@@ -57,6 +57,11 @@ public class NotificationParams {
     this.data = new Bundle(data); // make a copy of the bundle
   }
 
+  // Copy constructor
+  public NotificationParams(NotificationParams params) {
+    this(params.data);
+  }
+
   @Nullable
   Integer getNotificationCount() {
     Integer notificationCount = getInteger(MessageNotificationKeys.NOTIFICATION_COUNT);
@@ -414,6 +419,16 @@ public class NotificationParams {
 
   public boolean isNotification() {
     return getBoolean(MessageNotificationKeys.ENABLE_NOTIFICATION);
+  }
+
+  /**
+   * Puts the provided String value to the underlying bundle.
+   *
+   * @param key entry key as string.
+   * @param value entry value as string.
+   */
+  void putString(String key, String value) {
+    data.putString(key, value);
   }
 
   public static boolean isNotification(Bundle data) {

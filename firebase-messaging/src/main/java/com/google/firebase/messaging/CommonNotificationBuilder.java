@@ -580,22 +580,4 @@ public final class CommonNotificationBuilder {
     // notifications.
     return "FCM-Notification:" + SystemClock.uptimeMillis();
   }
-
-  /**
-   * Encapsulates the information required to display a notification.
-   *
-   * @hide
-   */
-  public static class DisplayNotificationInfo {
-
-    public final NotificationCompat.Builder notificationBuilder;
-    public final String tag;
-    public final int id;
-
-    DisplayNotificationInfo(NotificationCompat.Builder notificationBuilder, String tag, int id) {
-      this.notificationBuilder = notificationBuilder;
-      this.tag = tag;
-      this.id = id;
-    }
-  }
 }

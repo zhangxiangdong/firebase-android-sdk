@@ -27,7 +27,7 @@ import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.core.app.NotificationCompat;
 import androidx.test.core.app.ApplicationProvider;
-import com.google.firebase.messaging.CommonNotificationBuilder.DisplayNotificationInfo;
+import com.google.firebase.messaging.DisplayNotificationInfo;
 import com.google.firebase.messaging.Constants.MessageNotificationKeys;
 import com.google.firebase.messaging.testing.Bundles;
 import java.util.Arrays;
@@ -97,7 +97,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().tickerText.toString())
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().tickerText.toString())
         .isEqualTo(ticker);
   }
 
@@ -112,7 +112,7 @@ public class CommonNotificationBuilderRoboTest {
 
     // Assert
     List<Long> vibrateTimingsArray =
-        getVibrateTimingsArray(notificationInfo.notificationBuilder.getNotification().vibrate);
+        getVibrateTimingsArray(notificationInfo.getNotificationBuilder().getNotification().vibrate);
     assertThat(vibrateTimingsArray).containsExactly(999L, 1999L, 2999L).inOrder();
   }
 
@@ -134,7 +134,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().vibrate).isNull();
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().vibrate).isNull();
   }
 
   @Test
@@ -145,7 +145,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().vibrate).isNull();
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().vibrate).isNull();
   }
 
   @Test
@@ -162,7 +162,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // assert
-    android.app.Notification notification = notificationInfo.notificationBuilder.getNotification();
+    android.app.Notification notification = notificationInfo.getNotificationBuilder().getNotification();
     assertThat(notification.ledARGB).isEqualTo(colorExpected);
     assertThat(notification.ledOnMS).isEqualTo(lightOnDurationExpected);
     assertThat(notification.ledOffMS).isEqualTo(lightOffDurationExpected);
@@ -182,7 +182,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify
-    android.app.Notification notification = notificationInfo.notificationBuilder.getNotification();
+    android.app.Notification notification = notificationInfo.getNotificationBuilder().getNotification();
     assertThat(notification.ledARGB).isEqualTo(colorExpected);
     assertThat(notification.ledOnMS).isEqualTo(lightOnDurationExpected);
     assertThat(notification.ledOffMS).isEqualTo(lightOffDurationExpected);
@@ -202,7 +202,7 @@ public class CommonNotificationBuilderRoboTest {
     // verify. The followings check is a check on NotificationCompat#setLights is not called without
     // injecting NotificationCompat.Builder into the
     // CommonNotificationBuilder#createNotificationInfo method
-    android.app.Notification notification = notificationInfo.notificationBuilder.getNotification();
+    android.app.Notification notification = notificationInfo.getNotificationBuilder().getNotification();
     assertThat(notification.ledARGB).isEqualTo(0);
     assertThat(notification.ledOnMS).isEqualTo(0);
     assertThat(notification.ledOffMS).isEqualTo(0);
@@ -226,7 +226,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().defaults)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().defaults)
         .isEqualTo(lightSettingsFlagExpected);
   }
 
@@ -246,7 +246,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().defaults)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().defaults)
         .isEqualTo(lightSettingsFlagExpected);
   }
 
@@ -268,7 +268,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().defaults)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().defaults)
         .isEqualTo(lightSettingsFlagExpected);
   }
 
@@ -290,7 +290,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().defaults)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().defaults)
         .isEqualTo(lightSettingsFlagExpected);
   }
 
@@ -304,7 +304,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().when)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().when)
         .isEqualTo(eventTimeExpected);
 
     // This is an indirect way to examine if showWhen is set by the SDK. The reason is that there
@@ -314,9 +314,9 @@ public class CommonNotificationBuilderRoboTest {
     // notificationInfo.notificationBuilder.getNotification().
     NotificationCompat.Builder notificationBuilderShowWhenFalse =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data))
-            .notificationBuilder
+            .getNotificationBuilder()
             .setShowWhen(false);
-    assertThat(notificationInfo.notificationBuilder).isNotEqualTo(notificationBuilderShowWhenFalse);
+    assertThat(notificationInfo.getNotificationBuilder()).isNotEqualTo(notificationBuilderShowWhenFalse);
   }
 
   @Test
@@ -329,7 +329,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().when)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().when)
         .isEqualTo(eventTimeExpected);
   }
 
@@ -341,7 +341,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().priority)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().priority)
         .isEqualTo(notificationPriorityExpected);
   }
 
@@ -353,7 +353,7 @@ public class CommonNotificationBuilderRoboTest {
     DisplayNotificationInfo notificationInfo =
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
-    assertThat(notificationInfo.notificationBuilder.getNotification().priority).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().priority).isEqualTo(0);
   }
 
   @Test
@@ -365,7 +365,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // never set
-    assertThat(notificationInfo.notificationBuilder.getNotification().priority).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().priority).isEqualTo(0);
   }
 
   @Test
@@ -380,7 +380,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // assert
-    assertThat(notificationInfo.notificationBuilder.getNotification().number)
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().number)
         .isEqualTo(expectedNotificationCount);
   }
 
@@ -393,7 +393,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify never set
-    assertThat(notificationInfo.notificationBuilder.getNotification().number).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().number).isEqualTo(0);
   }
 
   @Test
@@ -405,11 +405,11 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify never set
-    assertThat(notificationInfo.notificationBuilder.getNotification().number).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().getNotification().number).isEqualTo(0);
   }
 
   @Test
-  @Ignore // notificationInfo.notificationBuilder.getNotification().visibility no longer accessible
+  @Ignore // notificationInfo.getNotificationBuilder().getNotification().visibility no longer accessible
   public void createNotificationInfo_withValidVisibility() {
     // VISIBILITY_PUBLIC, see:
     // https://developer.android.com/reference/android/support/v4/app/NotificationCompat.html#visibility_public
@@ -421,12 +421,12 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify
-    assertThat(notificationInfo.notificationBuilder.build().visibility)
+    assertThat(notificationInfo.getNotificationBuilder().build().visibility)
         .isEqualTo(expectedVisibility);
   }
 
   @Test
-  @Ignore // notificationInfo.notificationBuilder.getNotification().visibility no longer accessible
+  @Ignore // notificationInfo.getNotificationBuilder().getNotification().visibility no longer accessible
   public void createNotificationInfo_withInvalidVisibility() {
     // set up
     String invalidVisibility = "a";
@@ -437,11 +437,11 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify never set
-    assertThat(notificationInfo.notificationBuilder.build().visibility).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().build().visibility).isEqualTo(0);
   }
 
   @Test
-  @Ignore // notificationInfo.notificationBuilder.getNotification().visibility no longer accessible
+  @Ignore // notificationInfo.getNotificationBuilder().getNotification().visibility no longer accessible
   public void createNotificationInfo_withInvalidVisibility_outOfBoundVisibility() {
     // set up
     String invalidVisibility = "123";
@@ -452,7 +452,7 @@ public class CommonNotificationBuilderRoboTest {
         CommonNotificationBuilder.createNotificationInfo(appContext, new NotificationParams(data));
 
     // verify never set
-    assertThat(notificationInfo.notificationBuilder.build().visibility).isEqualTo(0);
+    assertThat(notificationInfo.getNotificationBuilder().build().visibility).isEqualTo(0);
   }
 
   @Test
@@ -468,7 +468,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().getChannelId()).isEqualTo("channelId");
+    assertThat(notificationInfo.getNotificationBuilder().build().getChannelId()).isEqualTo("channelId");
   }
 
   @Test
@@ -511,7 +511,7 @@ public class CommonNotificationBuilderRoboTest {
 
     // http://google3/javatests/com/google/android/gmscore/integ/tests_res/res/values/strings.xml?l=25-28&rcl=127925113
     // "String with no arguments"
-    assertThat(shadowOf(notificationInfo.notificationBuilder.build()).getContentTitle().toString())
+    assertThat(shadowOf(notificationInfo.getNotificationBuilder().build()).getContentTitle().toString())
         .isEqualTo("String with no arguments");
   }
 
@@ -534,7 +534,7 @@ public class CommonNotificationBuilderRoboTest {
 
     // http://google3/javatests/com/google/android/gmscore/integ/tests_res/res/values/strings.xml?l=25-28&rcl=127925113
     // "First: %1$s and second %2$s"
-    assertThat(shadowOf(notificationInfo.notificationBuilder.build()).getContentTitle().toString())
+    assertThat(shadowOf(notificationInfo.getNotificationBuilder().build()).getContentTitle().toString())
         .isEqualTo("First: one and second two");
   }
 
@@ -555,7 +555,7 @@ public class CommonNotificationBuilderRoboTest {
 
     // http://google3/javatests/com/google/android/gmscore/integ/tests_res/res/values/strings.xml?l=25-28&rcl=127925113
     // "String with no arguments"
-    assertThat(shadowOf(notificationInfo.notificationBuilder.build()).getContentText().toString())
+    assertThat(shadowOf(notificationInfo.getNotificationBuilder().build()).getContentText().toString())
         .isEqualTo("String with no arguments");
   }
 
@@ -578,7 +578,7 @@ public class CommonNotificationBuilderRoboTest {
 
     // http://google3/javatests/com/google/android/gmscore/integ/tests_res/res/values/strings.xml?l=25-28&rcl=127925113
     // "First: %1$s and second %2$s"
-    assertThat(shadowOf(notificationInfo.notificationBuilder.build()).getContentText().toString())
+    assertThat(shadowOf(notificationInfo.getNotificationBuilder().build()).getContentText().toString())
         .isEqualTo("First: one and second two");
   }
 
@@ -594,7 +594,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().icon)
+    assertThat(notificationInfo.getNotificationBuilder().build().icon)
         .isEqualTo(com.google.firebase.messaging.test.R.drawable.gcm_icon);
   }
 
@@ -612,7 +612,7 @@ public class CommonNotificationBuilderRoboTest {
                 CommonNotificationBuilder.METADATA_DEFAULT_ICON,
                 com.google.firebase.messaging.test.R.drawable.gcm_icon));
 
-    assertThat(notificationInfo.notificationBuilder.build().icon)
+    assertThat(notificationInfo.getNotificationBuilder().build().icon)
         .isEqualTo(com.google.firebase.messaging.test.R.drawable.gcm_icon);
   }
 
@@ -636,7 +636,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().icon)
+    assertThat(notificationInfo.getNotificationBuilder().build().icon)
         .isEqualTo(packageInfo.applicationInfo.icon);
   }
 
@@ -660,7 +660,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().icon)
+    assertThat(notificationInfo.getNotificationBuilder().build().icon)
         .isEqualTo(android.R.drawable.sym_def_app_icon);
   }
 
@@ -676,7 +676,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().sound)
+    assertThat(notificationInfo.getNotificationBuilder().build().sound)
         .isEqualTo(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
   }
 
@@ -692,7 +692,7 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().sound)
+    assertThat(notificationInfo.getNotificationBuilder().build().sound)
         .isEqualTo(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
   }
 
@@ -708,6 +708,6 @@ public class CommonNotificationBuilderRoboTest {
             appContext.getPackageManager(),
             Bundle.EMPTY);
 
-    assertThat(notificationInfo.notificationBuilder.build().sound).isNull();
+    assertThat(notificationInfo.getNotificationBuilder().build().sound).isNull();
   }
 }

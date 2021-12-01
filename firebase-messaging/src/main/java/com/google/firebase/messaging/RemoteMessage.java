@@ -279,6 +279,25 @@ public final class RemoteMessage extends AbstractSafeParcelable {
     return notification;
   }
 
+  /**
+   * Sets a new notification instance associated with the {@link RemoteMessage}
+   *
+   * 3p developers can use this method to attach a customized notification message.
+   *
+   * @param notification Notification object to set.
+   *
+   * @return {True} if setting notification is success otherwise false.
+   */
+  public boolean setNotification(@NonNull Notification notification){
+    if(notification.params.isNotification()) {
+      this.notification = notification;
+      return true;
+    }else{
+      this.notification = null;
+      return false;
+    }
+  }
+
   /** @hide */
   @KeepForSdk
   public Intent toIntent() {
@@ -467,8 +486,10 @@ public final class RemoteMessage extends AbstractSafeParcelable {
     private final boolean defaultVibrateTimings;
     private final boolean defaultLightSettings;
     private final long[] vibrateTimings;
+    private final NotificationParams params;
 
     private Notification(NotificationParams params) {
+      this.params = params;
       title = params.getString(MessageNotificationKeys.TITLE);
       titleLocKey = params.getLocalizationResourceForKey(MessageNotificationKeys.TITLE);
       titleLocArgs = getLocalizationArgs(params, MessageNotificationKeys.TITLE);
@@ -495,6 +516,17 @@ public final class RemoteMessage extends AbstractSafeParcelable {
       eventTime = params.getLong(MessageNotificationKeys.EVENT_TIME);
       lightSettings = params.getLightSettings();
       vibrateTimings = params.getVibrateTimings();
+    }
+
+    /** Returns the params from which the notification is constructed. */
+    NotificationParams getParams() {
+      return params;
+    }
+
+    /** Returns the Builder for making changes to existing notification. */
+    @NonNull
+    public Notification.Builder toBuilder() {
+      return new Notification.Builder(params);
     }
 
     private static String[] getLocalizationArgs(NotificationParams params, String key) {
@@ -777,6 +809,88 @@ public final class RemoteMessage extends AbstractSafeParcelable {
     @Nullable
     public long[] getVibrateTimings() {
       return vibrateTimings;
+    }
+
+    /** Builder class for customizing {@link Notification} */
+    public static class Builder {
+
+      @NonNull private final NotificationParams params;
+
+      private Builder(@NonNull NotificationParams params) {
+        this.params = new NotificationParams(params);
+      }
+
+      /** Sets title for notification. */
+      public Builder setTitle(String title) {
+        params.putString(MessageNotificationKeys.TITLE, title);
+        return this;
+      }
+
+      /** Sets body for notification. */
+      public Builder setBody(String body) {
+        params.putString(MessageNotificationKeys.BODY, body);
+        return this;
+      }
+
+      /** Sets icon for notification. */
+      public Builder setIcon(String icon) {
+        params.putString(MessageNotificationKeys.ICON, icon);
+        return this;
+      }
+
+      /** Sets sound resource for notification. */
+      public Builder setSound(String sound) {
+        params.putString(MessageNotificationKeys.SOUND_2, sound);
+        return this;
+      }
+
+      /** Sets tag for notification. */
+      public Builder setTag(String tag) {
+        params.putString(MessageNotificationKeys.TAG, tag);
+        return this;
+      }
+
+      /** Sets color for notification. */
+      public Builder setColor(String color) {
+        params.putString(MessageNotificationKeys.COLOR, color);
+        return this;
+      }
+
+      /** Sets click action for notification. */
+      public Builder setClickAction(String clickAction) {
+        params.putString(MessageNotificationKeys.CLICK_ACTION, clickAction);
+        return this;
+      }
+
+      /** Sets channel id for notification. */
+      public Builder setChannelId(String channelId) {
+        params.putString(MessageNotificationKeys.CHANNEL, channelId);
+        return this;
+      }
+
+      /** Sets link for notification. */
+      public Builder setLink(String link) {
+        params.putString(MessageNotificationKeys.LINK_ANDROID, link);
+        return this;
+      }
+
+      /** Sets image url for notification. */
+      public Builder setImageUrl(String imageUrl) {
+        params.putString(MessageNotificationKeys.IMAGE_URL, imageUrl);
+        return this;
+      }
+
+      /** Sets ticker for notification. */
+      public Builder setTicker(String ticker) {
+        params.putString(MessageNotificationKeys.TICKER, ticker);
+        return this;
+      }
+
+      /** Builds Notification Object. */
+      @NonNull
+      public Notification build() {
+        return new Notification(params);
+      }
     }
   }
 }
