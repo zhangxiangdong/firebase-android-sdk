@@ -2,8 +2,11 @@ package com.google.firebase.remoteconfig.internal;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
+
 import java.util.Arrays;
+import java.util.EventListener;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,6 +29,7 @@ public class RealTimeConfigStream {
     private Context.CancellableContext cancellableContext;
     private final ConfigFetchHandler fetchHandler;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
+    private Map<String, RealTimeEventListener> eventListeners;
 
 
     public RealTimeConfigStream(
@@ -35,6 +39,7 @@ public class RealTimeConfigStream {
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
         this.cancellableContext = null;
+        this.eventListeners = new HashMap<>();
     }
 
     private ManagedChannel getManagedChannel() {
@@ -53,7 +58,7 @@ public class RealTimeConfigStream {
         retryPolicy.put("maxBackoff", "40s");
         retryPolicy.put("backoffMultiplier", 2.0);
         retryPolicy.put("initialBackoff", "30s");
-        retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
+        retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList(14));
 
         Map<String, Object> name = new HashMap();
         name.put("service", "RealTimeRemoteConfig.RealTimeRCService");
@@ -70,6 +75,10 @@ public class RealTimeConfigStream {
     public void startStream(long fetchVersion) throws RealTimeConfigStreamException {
         logger.log(Level.INFO, "Real Time stream is being started");
 
+        // Only start stream if there are listeners
+        if (this.eventListeners.isEmpty()) {
+            return;
+        }
         // Check if context or channel have been closed and issue new resources if closed.
         if (this.cancellableContext == null) {
             this.cancellableContext = Context.current().withCancellation();
@@ -112,6 +121,11 @@ public class RealTimeConfigStream {
                 Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
                 fetchTask.onSuccessTask((unusedFetchResponse) -> Tasks.forResult(null));
                 logger.info("Finished Fetching new updates.");
+
+                // Execute callbacks for listeners.
+                for (String listener : eventListeners.keySet()) {
+                    eventListeners.get(listener).onEvent();
+                }
             }
 
             // What to do on stream errors.
@@ -164,5 +178,18 @@ public class RealTimeConfigStream {
             return this.managedChannel.getState(false);
         }
         return ConnectivityState.SHUTDOWN;
+    }
+
+    public void putRealTimeEventListener(String listenerName, RealTimeEventListener realTimeEventListener) {
+        this.eventListeners.put(listenerName, realTimeEventListener);
+    }
+
+    public void removeRealTimeEventListener(String listenerName) {
+        eventListeners.remove(listenerName);
+    }
+
+    public interface RealTimeEventListener extends EventListener {
+        // Call back for when Real Time signal occurs.
+        void onEvent();
     }
 }
