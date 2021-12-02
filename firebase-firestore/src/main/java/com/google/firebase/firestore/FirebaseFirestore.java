@@ -16,13 +16,14 @@ package com.google.firebase.firestore;
 
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 import static com.google.firebase.firestore.util.Preconditions.checkNotNull;
-
+import android.util.Log;
 import android.app.Activity;
 import android.content.Context;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
@@ -55,6 +56,7 @@ import com.google.firebase.firestore.util.Logger.Level;
 import com.google.firebase.inject.Deferred;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,12 +109,16 @@ public class FirebaseFirestore {
     if (app == null) {
       throw new IllegalStateException("You must call FirebaseApp.initializeApp first.");
     }
-    return getInstance(app, DatabaseId.DEFAULT_DATABASE_ID);
+    FirebaseFirestore firestore = getInstance(app, DatabaseId.DEFAULT_DATABASE_ID);
+    Log.i("zzyzx", "FirebaseFirestore.getInstance() returns " + System.identityHashCode(firestore) + ", app=" + System.identityHashCode(app));
+    return firestore;
   }
 
   @NonNull
   public static FirebaseFirestore getInstance(@NonNull FirebaseApp app) {
-    return getInstance(app, DatabaseId.DEFAULT_DATABASE_ID);
+    FirebaseFirestore firestore = getInstance(app, DatabaseId.DEFAULT_DATABASE_ID);
+    Log.i("zzyzx", "FirebaseFirestore.getInstance(" + System.identityHashCode(app) + ") returns " + System.identityHashCode(firestore));
+    return firestore;
   }
 
   // TODO: make this public
@@ -377,7 +383,9 @@ public class FirebaseFirestore {
   public DocumentReference document(@NonNull String documentPath) {
     checkNotNull(documentPath, "Provided document path must not be null.");
     ensureClientConfigured();
-    return DocumentReference.forPath(ResourcePath.fromString(documentPath), this);
+    DocumentReference doc = DocumentReference.forPath(ResourcePath.fromString(documentPath), this);
+    Log.i("zzyzx", "FirebaseFirestore@" + System.identityHashCode(this) + ".document(\"" + documentPath + "\") returns " + System.identityHashCode(doc));
+    return doc;
   }
 
   /**
@@ -482,6 +490,33 @@ public class FirebaseFirestore {
     return batch.commit();
   }
 
+  private final Object terminateTaskLock = new Object();
+  private volatile Task<Void> terminateTask;
+
+  private static final class TerminateTaskOnCompleteListener implements OnCompleteListener<Void> {
+    
+    private final WeakReference<FirebaseFirestore> firestoreRef;
+
+    public TerminateTaskOnCompleteListener(FirebaseFirestore firestore) {
+      firestoreRef = new WeakReference(firestore);
+    }
+
+    public void onComplete(Task<Void> task) {
+      Log.i("zzyzx", "Terminate task " + System.identityHashCode(task) + " completed");
+      FirebaseFirestore firestore = firestoreRef.get();
+      if (firestore == null) {
+        Log.i("zzyzx", "Terminate task " + System.identityHashCode(task) + " completed AFTER FirebaseFirestore was garbage collected");
+      }
+      
+      synchronized (firestore.terminateTaskLock) {
+        if (firestore.terminateTask != task) {
+          throw new IllegalArgumentException("firestore.terminateTask != task; firestore.terminateTask=" + firestore.terminateTask + " task=" + task);
+        }
+        firestore.terminateTask = null;
+      }
+    }
+  }
+
   /**
    * Terminates this {@code FirebaseFirestore} instance.
    *
@@ -504,11 +539,30 @@ public class FirebaseFirestore {
    */
   @NonNull
   public Task<Void> terminate() {
+    Log.i("zzyzx", "FirebaseFirestore@" + System.identityHashCode(this) + ".terminate()");
+    if (terminateTask != null) {
+      Log.i("zzyzx", "FirebaseFirestore@" + System.identityHashCode(this) + ".terminate() returning cached task: " + System.identityHashCode(terminateTask));
+      return terminateTask;
+    }
+
     instanceRegistry.remove(this.getDatabaseId().getDatabaseId());
 
     // The client must be initialized to ensure that all subsequent API usage throws an exception.
     this.ensureClientConfigured();
-    return client.terminate();
+
+    synchronized (terminateTaskLock) {
+      if (terminateTask != null) {
+        return terminateTask;
+      }
+
+      terminateTask = client.terminate();
+      terminateTask.addOnCompleteListener(completedTerminateTask -> {
+        Log.i("zzyzx", "FirebaseFirestore@" + System.identityHashCode(FirebaseFirestore.this) + ".terminate() task " + System.identityHashCode(completedTerminateTask) + " complete");
+      });
+    }
+
+    Log.i("zzyzx", "FirebaseFirestore@" + System.identityHashCode(this) + ".terminate() returning new task: " + System.identityHashCode(terminateTask));
+    return terminateTask;
   }
 
   /**

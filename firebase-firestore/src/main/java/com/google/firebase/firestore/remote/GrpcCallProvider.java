@@ -15,6 +15,7 @@
 package com.google.firebase.firestore.remote;
 
 import android.content.Context;
+import android.util.Log;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
@@ -140,18 +141,22 @@ public class GrpcCallProvider {
 
   /** Shuts down the gRPC channel and the internal worker queue. */
   void shutdown() {
+    Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown()");
     // Handling shutdown synchronously to avoid re-enqueuing on the AsyncQueue after shutdown has
     // started.
     ManagedChannel channel = null;
     try {
+      Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel = Tasks.await(channelTask)");
       channel = Tasks.await(channelTask);
     } catch (ExecutionException e) {
+      Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() Tasks.await(channelTask) threw " + e);
       Logger.warn(
           FirestoreChannel.class.getSimpleName(),
           "Channel is not initialized, shutdown will just do nothing. Channel initializing run into exception: %s",
           e);
       return;
     } catch (InterruptedException e) {
+      Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() Tasks.await(channelTask) threw " + e);
       Logger.warn(
           FirestoreChannel.class.getSimpleName(),
           "Interrupted while retrieving the gRPC Managed Channel");
@@ -160,6 +165,7 @@ public class GrpcCallProvider {
       return;
     }
 
+    Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.shutdown()");
     channel.shutdown();
     try {
       // TODO(rsgowman): Investigate occasional hangs in channel.shutdown().
@@ -169,25 +175,30 @@ public class GrpcCallProvider {
       // figure this out. But in the meantime, just use an exceptionally short timeout here
       // and skip straight to shutdownNow() which works every time. (We don't support shutting
       // down Firestore, so this should only be triggered from the test suite.)
+      Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.awaitTermination(1)");
       if (!channel.awaitTermination(1, TimeUnit.SECONDS)) {
         Logger.debug(
             FirestoreChannel.class.getSimpleName(),
             "Unable to gracefully shutdown the gRPC ManagedChannel. Will attempt an immediate shutdown.");
+        Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.awaitTermination(1) timed out; calling channel.shutdownNow()");
         channel.shutdownNow();
 
         // gRPC docs claim "Although forceful, the shutdown process is still not
         // instantaneous; isTerminated() will likely return false immediately after this
         // method returns." Therefore, we still need to awaitTermination() again.
+        Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.awaitTermination(60)");
         if (!channel.awaitTermination(60, TimeUnit.SECONDS)) {
           // Something bad has happened. We could assert, but this is just resource cleanup
           // for a resource that is likely only released at the end of the execution. So
           // instead, we'll just log the error.
+          Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.awaitTermination(60) timed out");
           Logger.warn(
               FirestoreChannel.class.getSimpleName(),
               "Unable to forcefully shutdown the gRPC ManagedChannel.");
         }
       }
     } catch (InterruptedException e) {
+      Log.i("zzyzx", "GrpcCallProvider@" + System.identityHashCode(this) + ".shutdown() channel.awaitTermination() threw InterruptedException");
       // (Re-)Cancel if current thread also interrupted
       channel.shutdownNow();
 

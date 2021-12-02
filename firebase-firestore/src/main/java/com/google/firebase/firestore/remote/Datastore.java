@@ -15,6 +15,7 @@
 package com.google.firebase.firestore.remote;
 
 import android.content.Context;
+import android.util.Log;
 import android.os.Build;
 import androidx.annotation.Nullable;
 import com.google.android.gms.tasks.Task;
@@ -111,6 +112,7 @@ public class Datastore {
   }
 
   void shutdown() {
+    Log.i("zzyzx", "Datastore@" + System.identityHashCode(this) + ".shutdown()");
     channel.shutdown();
   }
 

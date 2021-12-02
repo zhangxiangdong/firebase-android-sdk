@@ -17,6 +17,7 @@ package com.google.firebase.firestore.remote;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import android.content.Context;
+import android.util.Log;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.firebase.firestore.BuildConfig;
@@ -96,6 +97,7 @@ public class FirestoreChannel {
    * Shuts down the grpc channel. This is not reversible and renders the FirestoreChannel unusable.
    */
   public void shutdown() {
+    Log.i("zzyzx", "FirestoreChannel@" + System.identityHashCode(this) + ".shutdown()");
     callProvider.shutdown();
   }
 

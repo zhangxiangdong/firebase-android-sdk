@@ -16,6 +16,7 @@ package com.google.firebase.firestore.remote;
 
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
+import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import com.google.firebase.database.collection.ImmutableSortedSet;
@@ -314,13 +315,18 @@ public final class RemoteStore implements WatchChangeAggregator.TargetMetadataPr
    * reversible and renders the Remote Store unusable.
    */
   public void shutdown() {
+    Log.i("zzyzx", "RemoteStore@" + System.identityHashCode(this) + ".shutdown()");
     Logger.debug(LOG_TAG, "Shutting down");
+    Log.i("zzyzx", "RemoteStore@" + System.identityHashCode(this) + ".shutdown() connectivityMonitor.shutdown()");
     connectivityMonitor.shutdown();
     networkEnabled = false;
+    Log.i("zzyzx", "RemoteStore@" + System.identityHashCode(this) + ".shutdown() this.disableNetworkInternal()");
     this.disableNetworkInternal();
+    Log.i("zzyzx", "RemoteStore@" + System.identityHashCode(this) + ".shutdown() datastore.shutdown()");
     datastore.shutdown();
     // Set the OnlineState to UNKNOWN (rather than OFFLINE) to avoid potentially triggering
     // spurious listener events with cached data, etc.
+    Log.i("zzyzx", "RemoteStore@" + System.identityHashCode(this) + ".shutdown() onlineStateTracker.updateState(OnlineState.UNKNOWN)");
     onlineStateTracker.updateState(OnlineState.UNKNOWN);
   }
 

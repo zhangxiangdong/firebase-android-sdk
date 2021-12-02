@@ -17,6 +17,7 @@ package com.google.firebase.firestore.core;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import android.content.Context;
+import android.util.Log;
 import androidx.annotation.Nullable;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
@@ -146,17 +147,25 @@ public final class FirestoreClient {
 
   /** Terminates this client, cancels all writes / listeners, and releases all resources. */
   public Task<Void> terminate() {
+    Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(this) + ".terminate() authProvider.removeChangeListener()");
     authProvider.removeChangeListener();
+    Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(this) + ".terminate() appCheckProvider.removeChangeListener()");
     appCheckProvider.removeChangeListener();
     return asyncQueue.enqueueAndInitiateShutdown(
         () -> {
+          Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(FirestoreClient.this) + ".terminate() remoteStore.shutdown()");
           remoteStore.shutdown();
+
+          Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(FirestoreClient.this) + ".terminate() persistence.shutdown()");
           persistence.shutdown();
+
           if (gcScheduler != null) {
+            Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(FirestoreClient.this) + ".terminate() gcScheduler.stop()");
             gcScheduler.stop();
           }
 
           if (Persistence.INDEXING_SUPPORT_ENABLED) {
+            Log.i("zzyzx", "FirestoreClient@" + System.identityHashCode(FirestoreClient.this) + ".terminate() indexBackfiller.getScheduler().stop()");
             indexBackfiller.getScheduler().stop();
           }
         });

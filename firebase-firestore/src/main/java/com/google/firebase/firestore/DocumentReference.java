@@ -20,6 +20,7 @@ import static com.google.firebase.firestore.util.Util.voidErrorTransformer;
 import static java.util.Collections.singletonList;
 
 import android.app.Activity;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.gms.tasks.Task;
@@ -431,7 +432,14 @@ public class DocumentReference {
     checkNotNull(executor, "Provided executor must not be null.");
     checkNotNull(metadataChanges, "Provided MetadataChanges value must not be null.");
     checkNotNull(listener, "Provided EventListener must not be null.");
-    return addSnapshotListenerInternal(executor, internalOptions(metadataChanges), null, listener);
+    ListenerRegistration listenerRegistration = addSnapshotListenerInternal(executor, internalOptions(metadataChanges), null, listener);
+    Log.i("zzyzx", "DocumentReference@" + System.identityHashCode(this) + ".addSnapshotListener("
+      + "executor=" + executor.getClass().getName() + "@" + System.identityHashCode(executor)
+      + " metadataChanges=" + metadataChanges
+      + " listener=" + listener.getClass().getName() + "@" + System.identityHashCode(listener)
+      + ") returns " + listenerRegistration.getClass().getName() + "@" + System.identityHashCode(listenerRegistration)
+    );
+    return listenerRegistration;
   }
 
   /**
@@ -480,6 +488,10 @@ public class DocumentReference {
     EventListener<ViewSnapshot> viewListener =
         (snapshot, error) -> {
           if (error != null) {
+            Log.i("zzyzx", "DocumentReference@" + System.identityHashCode(this)
+              + " calling " + userListener.getClass().getName() + "@" + System.identityHashCode(userListener)
+              + ".onEvent() with error=" + error
+            );
             userListener.onEvent(null, error);
             return;
           }
@@ -501,6 +513,12 @@ public class DocumentReference {
             documentSnapshot =
                 DocumentSnapshot.fromNoDocument(firestore, key, snapshot.isFromCache());
           }
+          Log.i("zzyzx", "DocumentReference@" + System.identityHashCode(this)
+            + " calling " + userListener.getClass().getName() + "@" + System.identityHashCode(userListener)
+            + ".onEvent() with key=" + key
+            + " hasPendingWrites=" + documentSnapshot.getMetadata().hasPendingWrites()
+            + " isFromCache=" + documentSnapshot.getMetadata().isFromCache()
+          );
           userListener.onEvent(documentSnapshot, null);
         };
 
