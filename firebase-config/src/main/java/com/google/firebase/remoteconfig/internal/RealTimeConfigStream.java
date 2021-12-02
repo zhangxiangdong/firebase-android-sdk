@@ -58,7 +58,7 @@ public class RealTimeConfigStream {
         retryPolicy.put("maxBackoff", "40s");
         retryPolicy.put("backoffMultiplier", 2.0);
         retryPolicy.put("initialBackoff", "30s");
-        retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList(14));
+        retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
 
         Map<String, Object> name = new HashMap();
         name.put("service", "RealTimeRemoteConfig.RealTimeRCService");
@@ -119,13 +119,16 @@ public class RealTimeConfigStream {
                 logger.log(Level.INFO, "Received invalidation signal. Fetching new Config.");
                 // Fetch and cache response for future usage by developer.
                 Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
-                fetchTask.onSuccessTask((unusedFetchResponse) -> Tasks.forResult(null));
-                logger.info("Finished Fetching new updates.");
-
-                // Execute callbacks for listeners.
-                for (String listener : eventListeners.keySet()) {
-                    eventListeners.get(listener).onEvent();
-                }
+                fetchTask.onSuccessTask((unusedFetchResponse) ->
+                        {
+                            logger.info("Finished Fetching new updates.");
+                            // Execute callbacks for listeners.
+                            for (String listener : eventListeners.keySet()) {
+                                eventListeners.get(listener).onEvent();
+                            }
+                            return Tasks.forResult(null);
+                        }
+                );
             }
 
             // What to do on stream errors.
@@ -180,10 +183,12 @@ public class RealTimeConfigStream {
         return ConnectivityState.SHUTDOWN;
     }
 
+    // Add Event listener.
     public void putRealTimeEventListener(String listenerName, RealTimeEventListener realTimeEventListener) {
         this.eventListeners.put(listenerName, realTimeEventListener);
     }
 
+    // Remove Event listener.
     public void removeRealTimeEventListener(String listenerName) {
         eventListeners.remove(listenerName);
     }
