@@ -2,15 +2,12 @@ package com.google.firebase.remoteconfig.internal;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-
 import java.util.Arrays;
 import java.util.EventListener;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import io.grpc.ConnectivityState;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
@@ -30,7 +27,6 @@ public class RealTimeConfigStream {
     private final ConfigFetchHandler fetchHandler;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
     private Map<String, RealTimeEventListener> eventListeners;
-
 
     public RealTimeConfigStream(
             ConfigFetchHandler fetchHandler
@@ -137,7 +133,6 @@ public class RealTimeConfigStream {
                 // Log Exception being thrown
                 logger.log(Level.WARNING, "Real Time Stream is closing. Regular Remote Config is still functional." +
                         "Please restart stream. Message: " + throwable.toString(), throwable.getCause());
-
             }
 
             // What to do when stream is closed.
@@ -183,6 +178,12 @@ public class RealTimeConfigStream {
         return ConnectivityState.SHUTDOWN;
     }
 
+    // Event Listener interface to be used by developers.
+    public interface RealTimeEventListener extends EventListener {
+        // Call back for when Real Time signal occurs.
+        void onEvent();
+    }
+
     // Add Event listener.
     public void putRealTimeEventListener(String listenerName, RealTimeEventListener realTimeEventListener) {
         this.eventListeners.put(listenerName, realTimeEventListener);
@@ -190,11 +191,10 @@ public class RealTimeConfigStream {
 
     // Remove Event listener.
     public void removeRealTimeEventListener(String listenerName) {
-        eventListeners.remove(listenerName);
+        this.eventListeners.remove(listenerName);
     }
 
-    public interface RealTimeEventListener extends EventListener {
-        // Call back for when Real Time signal occurs.
-        void onEvent();
+    public void clearAllRealTimeEventListeners() {
+        this.eventListeners.clear();
     }
 }

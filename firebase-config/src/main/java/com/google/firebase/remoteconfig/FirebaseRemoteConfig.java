@@ -597,6 +597,14 @@ public class FirebaseRemoteConfig {
   }
 
   /**
+   * Remove all Real Time listeners.
+   * */
+  @NonNull
+  public void clearAllRealTimeEventListener() {
+    this.realTimeConfigStream.clearAllRealTimeEventListeners();
+  }
+
+  /**
    * Loads all the configs from disk by calling {@link ConfigCacheClient#get} on each cache client.
    *
    * @hide
