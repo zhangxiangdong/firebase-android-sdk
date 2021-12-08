@@ -106,12 +106,10 @@ dependencies {
     implementation 'com.google.firebase:firebase-measurement-connector:18.0.0'
     implementation 'com.google.android.gms:play-services-tasks:17.0.2'
 
-    // gRPC
-    implementation 'io.grpc:grpc-netty-shaded:1.42.1'
+    // gRPC/proto
     implementation 'io.grpc:grpc-protobuf:1.42.1'
     implementation 'io.grpc:grpc-okhttp:1.42.1'
     implementation 'io.grpc:grpc-stub:1.42.1'
-    implementation 'com.google.protobuf:protobuf-java:3.19.1'
     compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
     implementation group: 'io.grpc', name: 'protoc-gen-grpc-java', version: '1.42.1', ext: 'pom'
 

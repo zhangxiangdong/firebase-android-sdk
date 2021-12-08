@@ -552,24 +552,36 @@ public class FirebaseRemoteConfig {
    * Start stream for Real Time. This is an async method; call and forget about it.
    * */
   @NonNull
-  public void startRealTimeStream() throws RealTimeConfigStreamException {
-    this.realTimeConfigStream.startStream(1L);
+  public void startRealTimeStream() {
+    try {
+      this.realTimeConfigStream.startStream(1L);
+    } catch (RealTimeConfigStreamException ex) {
+      Log.i(TAG, "Real Time Remote Config stream cannot be started.", ex);
+    }
   }
 
   /**
    * Call to close stream connection. Leaves channel open so that connection can be reopened.
    * */
   @NonNull
-  public void endRealTimeStreamConnection() throws RealTimeConfigStreamException {
-    this.realTimeConfigStream.endStreamConnection();
+  public void endRealTimeStreamConnection() {
+    try {
+      this.realTimeConfigStream.endStreamConnection();
+    } catch (RealTimeConfigStreamException ex) {
+      Log.i(TAG, "Real Time Remote Config stream connection cannot be closed.", ex);
+    }
   }
 
   /**
    * Closes Real Time stream channel. Prevents more connections from being opened.
    * */
   @NonNull
-  public void endRealTimeStreamChannel() throws RealTimeConfigStreamException {
-    this.realTimeConfigStream.endStreamChannel();
+  public void endRealTimeStreamChannel() {
+    try {
+      this.realTimeConfigStream.endStreamChannel();
+    } catch (RealTimeConfigStreamException ex) {
+      Log.i(TAG, "Real Time Remote Config stream channel cannot be opened.", ex);
+    }
   }
 
   /**

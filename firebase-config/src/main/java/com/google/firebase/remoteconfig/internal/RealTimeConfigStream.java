@@ -3,6 +3,7 @@ package com.google.firebase.remoteconfig.internal;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EventListener;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +43,7 @@ public class RealTimeConfigStream {
         return ManagedChannelBuilder
                 .forAddress(this.HOST_NAME, this.PORT_NUMBER)
                 .usePlaintext()
+                .enableRetry()
                 .defaultServiceConfig(makeServiceConfig())
                 .keepAliveWithoutCalls(true)
                 .build();
@@ -50,17 +52,18 @@ public class RealTimeConfigStream {
     // Create service config for stream.
     private Map<String, Object> makeServiceConfig() {
         Map<String, Object> retryPolicy = new HashMap<>();
-        retryPolicy.put("maxAttempts", 5.0);
+        retryPolicy.put("maxAttempts", 5D);
         retryPolicy.put("maxBackoff", "40s");
-        retryPolicy.put("backoffMultiplier", 2.0);
+        retryPolicy.put("backoffMultiplier", 2D);
         retryPolicy.put("initialBackoff", "30s");
         retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
 
         Map<String, Object> name = new HashMap();
-        name.put("service", "RealTimeRemoteConfig.RealTimeRCService");
+        name.put("service", "remoteconfig.RealTimeRCService");
 
         Map<String, Object> methodConfig = new HashMap<>();
         methodConfig.put("retryPolicy", retryPolicy);
+        methodConfig.put("name", Collections.<Object>singletonList(name));
 
         HashMap<String, Object> serviceConfig = new HashMap<>();
         serviceConfig.put("methodConfig", Arrays.<Object>asList(methodConfig));
@@ -132,7 +135,7 @@ public class RealTimeConfigStream {
             public void onError(Throwable throwable) {
                 // Log Exception being thrown
                 logger.log(Level.WARNING, "Real Time Stream is closing. Regular Remote Config is still functional." +
-                        "Please restart stream. Message: " + throwable.toString(), throwable.getCause());
+                        "Please restart app to open stream again. Message: " + throwable.toString(), throwable.getCause());
             }
 
             // What to do when stream is closed.
@@ -194,6 +197,7 @@ public class RealTimeConfigStream {
         this.eventListeners.remove(listenerName);
     }
 
+    // Remove all Event listeners.
     public void clearAllRealTimeEventListeners() {
         this.eventListeners.clear();
     }
