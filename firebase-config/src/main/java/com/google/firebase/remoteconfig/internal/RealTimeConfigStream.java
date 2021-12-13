@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.EventListener;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import io.grpc.ConnectivityState;
@@ -27,11 +29,13 @@ public class RealTimeConfigStream {
     private Context.CancellableContext cancellableContext;
     private final ConfigFetchHandler fetchHandler;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
-    private Map<String, RealTimeEventListener> eventListeners;
+    private final Map<String, RealTimeEventListener> eventListeners;
+    private final double backoffMultiplier;
 
     public RealTimeConfigStream(
             ConfigFetchHandler fetchHandler
     ) {
+        this.backoffMultiplier = new Random(10).nextDouble() + 1D;
         this.managedChannel = getManagedChannel();
         this.asyncStub = RealTimeRCServiceGrpc.newStub(this.managedChannel);
         this.fetchHandler = fetchHandler;
@@ -46,6 +50,7 @@ public class RealTimeConfigStream {
                 .enableRetry()
                 .defaultServiceConfig(makeServiceConfig())
                 .keepAliveWithoutCalls(true)
+                .keepAliveTime(3, TimeUnit.HOURS)
                 .build();
     }
 
@@ -53,8 +58,8 @@ public class RealTimeConfigStream {
     private Map<String, Object> makeServiceConfig() {
         Map<String, Object> retryPolicy = new HashMap<>();
         retryPolicy.put("maxAttempts", 5D);
-        retryPolicy.put("maxBackoff", "40s");
-        retryPolicy.put("backoffMultiplier", 2D);
+        retryPolicy.put("maxBackoff", "400s");
+        retryPolicy.put("backoffMultiplier", this.backoffMultiplier);
         retryPolicy.put("initialBackoff", "30s");
         retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
 
@@ -118,12 +123,29 @@ public class RealTimeConfigStream {
                 logger.log(Level.INFO, "Received invalidation signal. Fetching new Config.");
                 // Fetch and cache response for future usage by developer.
                 Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
+
+                // Possibly add loop so that new config update version is fetched and not an old one
+                /**
+                 * int curVersion = 1;
+                 * while (curVersion == oldVersion) {
+                 *  Task<ConfigFetchHandler.FetchResponse> fetchTask = fetchHandler.fetchIfNotThrottled();
+                 *  fetchTask.onSuccessTask((unusedFetchResponse) ->
+                 *      {
+                 *          curVersion = unusedFetchResponse.versionNumber;
+                 *          if (curVersion > oldVersion) {
+                 *              // do event listener stuff
+                 *          }
+                 *      }
+                 *  );
+                 *
+                 * }
+                 * */
                 fetchTask.onSuccessTask((unusedFetchResponse) ->
                         {
                             logger.info("Finished Fetching new updates.");
                             // Execute callbacks for listeners.
-                            for (String listener : eventListeners.keySet()) {
-                                eventListeners.get(listener).onEvent();
+                            for (RealTimeEventListener listener : eventListeners.values()) {
+                                listener.onEvent();
                             }
                             return Tasks.forResult(null);
                         }
@@ -149,7 +171,7 @@ public class RealTimeConfigStream {
     }
 
     // Immediately end stream connection. Allows for easy reopening without creating new resources.
-    public void endStreamConnection() throws RealTimeConfigStreamException {
+    public void pauseStreamConnection() throws RealTimeConfigStreamException {
         logger.info("Closing stream connections.");
         try {
             if (this.cancellableContext != null) {
@@ -162,7 +184,7 @@ public class RealTimeConfigStream {
     }
 
     // Permanent closing of gRPC stream. Closes channel and will require new channel and stub to reopen stream.
-    public void endStreamChannel() throws RealTimeConfigStreamException {
+    public void endStreamConnection() throws RealTimeConfigStreamException {
         logger.info("Closing stream channel.");
         try {
             if (this.managedChannel != null) {
