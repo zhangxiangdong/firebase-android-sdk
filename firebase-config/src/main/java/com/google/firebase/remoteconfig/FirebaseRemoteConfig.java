@@ -617,6 +617,34 @@ public class FirebaseRemoteConfig {
   }
 
   /**
+   * Starts and stops the stream if the app is in the foreground or background respectively.
+   * */
+  public void startAutomaticStreamHandling() {
+    this.firebaseApp.setAutomaticResourceManagementEnabled(true);
+    this.firebaseApp.addBackgroundStateChangeListener(
+            new FirebaseApp.BackgroundStateChangeListener() {
+              @Override
+              public void onBackgroundStateChanged(boolean background) {
+                if (background) {
+                  Log.i(TAG, "In background");
+                  pauseRealTimeStreamConnection();
+                } else {
+                  Log.i(TAG, "In foreground");
+                  startRealTimeStream();
+                }
+              }
+            }
+    );
+  }
+
+  /**
+   * Stops automatic stream handling.
+   * */
+  public void stopAutomaticStreamHandling() {
+
+  }
+
+  /**
    * Loads all the configs from disk by calling {@link ConfigCacheClient#get} on each cache client.
    *
    * @hide

@@ -11,6 +11,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nullable;
 import io.grpc.ConnectivityState;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
@@ -76,7 +77,7 @@ public class RealTimeConfigStream {
     }
 
     // Starts async stream and configures stream observer that will handle actions on stream.
-    public void startStream(long fetchVersion) throws RealTimeConfigStreamException {
+    public void startStream(@Nullable long fetchVersion) throws RealTimeConfigStreamException {
         logger.log(Level.INFO, "Real Time stream is being started");
 
         // Only start stream if there are listeners
@@ -95,7 +96,7 @@ public class RealTimeConfigStream {
         // Create request.
         OpenFetchInvalidationStreamRequest request
                 = OpenFetchInvalidationStreamRequest.newBuilder()
-                .setLastKnownVersionNumber(fetchVersion)
+                .setLastKnownVersionNumber(1L)
                 .build();
         try {
             // Wrap gRPC stream request in context to allow for graceful closing.
