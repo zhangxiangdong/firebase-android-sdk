@@ -638,13 +638,6 @@ public class FirebaseRemoteConfig {
   }
 
   /**
-   * Stops automatic stream handling.
-   * */
-  public void stopAutomaticStreamHandling() {
-
-  }
-
-  /**
    * Loads all the configs from disk by calling {@link ConfigCacheClient#get} on each cache client.
    *
    * @hide
