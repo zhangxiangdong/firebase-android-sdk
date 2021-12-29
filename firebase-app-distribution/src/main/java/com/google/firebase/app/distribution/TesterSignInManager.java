@@ -109,6 +109,7 @@ class TesterSignInManager {
     } else {
       // Throw error if app reentered during sign in
       if (this.isCurrentlySigningIn()) {
+        // TODO(lkellogg): Remove double logging and exception throwing/setting throughout
         LogWrapper.getInstance().e("App Resumed without sign in flow completing.");
         this.setCanceledAuthenticationError();
       }

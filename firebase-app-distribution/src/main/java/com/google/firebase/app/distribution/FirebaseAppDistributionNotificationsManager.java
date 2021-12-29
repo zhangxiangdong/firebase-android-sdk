@@ -66,6 +66,9 @@ class FirebaseAppDistributionNotificationsManager {
 
   int getNotificationContentTitleId(UpdateStatus status) {
     if (isErrorState(status)) {
+      // TODO(lkellogg): All failures statuses getting displayed as "Download failed" which is
+      //  misleading. Either handle those better or do not update the notifications for non-download
+      //  related statuses.
       return R.string.download_failed;
     } else if (status.equals(UpdateStatus.DOWNLOADED)) {
       return R.string.download_completed;

@@ -22,6 +22,8 @@ import com.google.firebase.app.distribution.internal.LogWrapper;
 class TaskUtils {
   private static final String TAG = "TaskUtils:";
 
+  // TODO(lkellogg): Delete this, in favor of more idiomatic error handling using
+  // addOnFailureListener
   static <TResult> Task<TResult> handleTaskFailure(
       Task<TResult> task,
       String defaultErrorMessage,

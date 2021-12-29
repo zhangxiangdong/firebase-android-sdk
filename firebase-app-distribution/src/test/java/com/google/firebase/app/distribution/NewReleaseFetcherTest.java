@@ -124,6 +124,8 @@ public class NewReleaseFetcherTest {
     packageInfo.versionName = "1.0";
     shadowPackageManager.installPackage(packageInfo);
 
+    // TODO(lkellogg): Rather than spy/mock various methods in this class, refactor out helpers and
+    // test them individually
     newReleaseFetcher =
         spy(
             new NewReleaseFetcher(
