@@ -2,7 +2,6 @@ package com.google.firebase.remoteconfig.internal;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-
 import java.net.URI;
 import java.util.EventListener;
 import java.util.HashMap;
@@ -29,15 +28,16 @@ public class ConfigRealtimeWebsocketClient {
     private final Map<String, RealTimeEventListener> eventListeners;
     private final ConfigFetchHandler configFetchHandler;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
-    private final String ENDPOINT = "10.0.2.2::50051";
+    private final String ENDPOINT = "ws://10.0.2.2:50051";
     private final WebSocketContainer webSocketContainer;
 
-    // Retry constants
+    // Retry parameters
     private final Timer timer;
-    private final int ORIGINAL_RETRIES = 5;
+    private final int ORIGINAL_RETRIES = 7;
     private final long RETRY_TIME = 10000;
     private long RETRY_MULTIPLIER;
     private int RETRIES_REMAINING;
+    private final Random random;
 
 
     public ConfigRealtimeWebsocketClient(ConfigFetchHandler configFetchHandler) {
@@ -45,7 +45,8 @@ public class ConfigRealtimeWebsocketClient {
         this.configFetchHandler = configFetchHandler;
         this.webSocketContainer = ContainerProvider.getWebSocketContainer();
         this.clientSession = null;
-        this.RETRY_MULTIPLIER = new Random(10).nextLong();
+        this.random = new Random(10);
+        this.RETRY_MULTIPLIER = this.random.nextInt(10) + 1;
         this.RETRIES_REMAINING = this.ORIGINAL_RETRIES;
         this.timer = new Timer();
     }
@@ -54,11 +55,12 @@ public class ConfigRealtimeWebsocketClient {
         if (this.clientSession == null) {
             try {
                 logger.info("Starting Realtime RC.");
+                this.RETRY_MULTIPLIER = this.random.nextInt(10) + 1;
                 this.clientSession = this.webSocketContainer.connectToServer(this, new URI(this.ENDPOINT));
                 this.RETRIES_REMAINING = this.ORIGINAL_RETRIES;
-                this.RETRY_MULTIPLIER = new Random(10).nextLong();
             } catch (Exception ex) {
-                logger.info("Failed to start Realtime RC.");
+                logger.info("Failed to start Realtime RC b/c of: " + ex.toString());
+                retryRealtimeconnection();
             }
         }
     }
@@ -75,21 +77,8 @@ public class ConfigRealtimeWebsocketClient {
         }
     }
 
-    @OnOpen
-    private void onOpen() {
-        logger.info("Realtime stream is open.");
-    }
-
-    @OnClose
-    private void onClose(Session session, CloseReason closeReason) {
-        this.clientSession = null;
-        logger.info("Realtime stream is closed.");
-    }
-
-    @OnError
-    private void onError(CloseReason closeReason) {
-        logger.info("Realtime RC failed for reason: " + closeReason.toString());
-        if (closeReason.getCloseCode() != CloseReason.CloseCodes.NORMAL_CLOSURE && RETRIES_REMAINING > 0) {
+    private void retryRealtimeconnection() {
+        if (this.RETRIES_REMAINING > 0) {
             RETRIES_REMAINING--;
             this.timer.schedule(new TimerTask() {
                 @Override
@@ -97,13 +86,34 @@ public class ConfigRealtimeWebsocketClient {
                     logger.info("Retrying Realtime connection.");
                     startRealtime();
                 }
-            }, this.RETRY_TIME * this.RETRY_MULTIPLIER);
+            }, (this.RETRY_TIME * this.RETRY_MULTIPLIER));
+        } else {
+            logger.info("No retries remaining. Restart app.");
         }
     }
 
+    @OnOpen
+    public void onOpen(Session session) {
+        logger.info("Realtime stream is open.");
+    }
+
+    @OnClose
+    public void onClose(Session session, CloseReason closeReason) {
+        this.clientSession = null;
+        logger.info("Realtime stream is closed.");
+        if (closeReason.getCloseCode() != CloseReason.CloseCodes.NORMAL_CLOSURE) {
+            retryRealtimeconnection();
+        }
+    }
+
+    @OnError
+    public void onError(Session session, Throwable thr) {
+        logger.info("Realtime RC failed for reason: " + thr.toString());
+    }
+
     @OnMessage
-    private void onMessage(String message) {
-        logger.info("Notification received from RC.");
+    public void onMessage(String message) {
+        logger.info("Notification received from RC. Message is: " + message);
         Task<ConfigFetchHandler.FetchResponse> fetchTask = this.configFetchHandler.fetch(0L);
         fetchTask.onSuccessTask((unusedFetchResponse) ->
                 {
@@ -138,5 +148,4 @@ public class ConfigRealtimeWebsocketClient {
     public void clearAllRealTimeEventListeners() {
         this.eventListeners.clear();
     }
-
 }

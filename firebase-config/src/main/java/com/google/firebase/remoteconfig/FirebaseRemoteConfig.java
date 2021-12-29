@@ -676,7 +676,15 @@ public class FirebaseRemoteConfig {
     this.configRealtimeWebsocketClient.stopRealtime();
   }
 
+  @VisibleForTesting
+  public void addRealtimeEventListener(String name, ConfigRealtimeWebsocketClient.RealTimeEventListener realTimeEventListener) {
+    this.configRealtimeWebsocketClient.putRealTimeEventListener(name, realTimeEventListener);
+  }
 
+  @VisibleForTesting
+  public void removeRealtimeEventListener(String name) {
+    this.configRealtimeWebsocketClient.removeRealTimeEventListener(name);
+  }
 
   /**
    * Starts and stops the realtime stream if the app is in the foreground or background respectively.
