@@ -33,6 +33,7 @@ import com.google.firebase.remoteconfig.internal.ConfigFetchHandler;
 import com.google.firebase.remoteconfig.internal.ConfigFetchHandler.FetchResponse;
 import com.google.firebase.remoteconfig.internal.ConfigGetParameterHandler;
 import com.google.firebase.remoteconfig.internal.ConfigMetadataClient;
+import com.google.firebase.remoteconfig.internal.ConfigRealtimeWebsocketClient;
 import com.google.firebase.remoteconfig.internal.DefaultsXmlParser;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -151,6 +152,7 @@ public class FirebaseRemoteConfig {
   private final ConfigGetParameterHandler getHandler;
   private final ConfigMetadataClient frcMetadata;
   private final FirebaseInstallationsApi firebaseInstallations;
+  private final ConfigRealtimeWebsocketClient configRealtimeWebsocketClient;
 
   /**
    * Firebase Remote Config constructor.
@@ -158,17 +160,18 @@ public class FirebaseRemoteConfig {
    * @hide
    */
   FirebaseRemoteConfig(
-      Context context,
-      FirebaseApp firebaseApp,
-      FirebaseInstallationsApi firebaseInstallations,
-      @Nullable FirebaseABTesting firebaseAbt,
-      Executor executor,
-      ConfigCacheClient fetchedConfigsCache,
-      ConfigCacheClient activatedConfigsCache,
-      ConfigCacheClient defaultConfigsCache,
-      ConfigFetchHandler fetchHandler,
-      ConfigGetParameterHandler getHandler,
-      ConfigMetadataClient frcMetadata) {
+          Context context,
+          FirebaseApp firebaseApp,
+          FirebaseInstallationsApi firebaseInstallations,
+          @Nullable FirebaseABTesting firebaseAbt,
+          Executor executor,
+          ConfigCacheClient fetchedConfigsCache,
+          ConfigCacheClient activatedConfigsCache,
+          ConfigCacheClient defaultConfigsCache,
+          ConfigFetchHandler fetchHandler,
+          ConfigGetParameterHandler getHandler,
+          ConfigMetadataClient frcMetadata,
+          ConfigRealtimeWebsocketClient configRealtimeWebsocketClient) {
     this.context = context;
     this.firebaseApp = firebaseApp;
     this.firebaseInstallations = firebaseInstallations;
@@ -180,6 +183,7 @@ public class FirebaseRemoteConfig {
     this.fetchHandler = fetchHandler;
     this.getHandler = getHandler;
     this.frcMetadata = frcMetadata;
+    this.configRealtimeWebsocketClient = configRealtimeWebsocketClient;
   }
 
   /**
@@ -660,5 +664,38 @@ public class FirebaseRemoteConfig {
   private static boolean isFetchedFresh(
       ConfigContainer fetched, @Nullable ConfigContainer activated) {
     return activated == null || !fetched.getFetchTime().equals(activated.getFetchTime());
+  }
+
+  @VisibleForTesting
+  public void startRealtime() {
+    this.configRealtimeWebsocketClient.startRealtime();
+  }
+
+  @VisibleForTesting
+  public void stopRealtime() {
+    this.configRealtimeWebsocketClient.stopRealtime();
+  }
+
+
+
+  /**
+   * Starts and stops the realtime stream if the app is in the foreground or background respectively.
+   * */
+  public void startAutomaticStreamHandling() {
+    this.firebaseApp.setAutomaticResourceManagementEnabled(true);
+    this.firebaseApp.addBackgroundStateChangeListener(
+            new FirebaseApp.BackgroundStateChangeListener() {
+              @Override
+              public void onBackgroundStateChanged(boolean background) {
+                if (background) {
+                  Log.i(TAG, "In background");
+                  stopRealtime();
+                } else {
+                  Log.i(TAG, "In foreground");
+                  startRealtime();
+                }
+              }
+            }
+    );
   }
 }

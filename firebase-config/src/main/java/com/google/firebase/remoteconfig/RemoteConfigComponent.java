@@ -33,6 +33,7 @@ import com.google.firebase.remoteconfig.internal.ConfigFetchHandler;
 import com.google.firebase.remoteconfig.internal.ConfigFetchHttpClient;
 import com.google.firebase.remoteconfig.internal.ConfigGetParameterHandler;
 import com.google.firebase.remoteconfig.internal.ConfigMetadataClient;
+import com.google.firebase.remoteconfig.internal.ConfigRealtimeWebsocketClient;
 import com.google.firebase.remoteconfig.internal.ConfigStorageClient;
 import com.google.firebase.remoteconfig.internal.Personalization;
 import java.util.HashMap;
@@ -199,7 +200,8 @@ public class RemoteConfigComponent {
               defaultsClient,
               fetchHandler,
               getHandler,
-              metadataClient);
+              metadataClient,
+                  getRealtimeClient(fetchHandler));
       in.startLoadingConfigsFromDisk();
       frcNamespaceInstances.put(namespace, in);
     }
@@ -246,6 +248,13 @@ public class RemoteConfigComponent {
         getFrcBackendApiClient(firebaseApp.getOptions().getApiKey(), namespace, metadataClient),
         metadataClient,
         this.customHeaders);
+  }
+
+  @VisibleForTesting
+  synchronized ConfigRealtimeWebsocketClient getRealtimeClient(
+          ConfigFetchHandler configFetchHandler
+  ) {
+    return new ConfigRealtimeWebsocketClient(configFetchHandler);
   }
 
   private ConfigGetParameterHandler getGetHandler(
