@@ -14,12 +14,14 @@
 
 package com.google.firebase.remoteconfig;
 
+import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.common.annotation.KeepForSdk;
+import com.google.android.gms.common.api.internal.BackgroundDetector;
 import com.google.android.gms.common.util.Clock;
 import com.google.android.gms.common.util.DefaultClock;
 import com.google.android.gms.tasks.Tasks;
@@ -42,6 +44,7 @@ import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Component for providing multiple Firebase Remote Config (FRC) instances. Firebase Android
@@ -73,7 +76,7 @@ public class RemoteConfigComponent {
   private static final Random DEFAULT_RANDOM = new Random();
 
   @GuardedBy("this")
-  private final Map<String, FirebaseRemoteConfig> frcNamespaceInstances = new HashMap<>();
+  private static final Map<String, FirebaseRemoteConfig> frcNamespaceInstances = new HashMap<>();
 
   private final Context context;
   private final ExecutorService executorService;
@@ -204,6 +207,7 @@ public class RemoteConfigComponent {
                   getRealtimeClient(fetchHandler));
       in.startLoadingConfigsFromDisk();
       frcNamespaceInstances.put(namespace, in);
+      GlobalBackgroundListener.ensureBackgroundListenerIsRegistered(context);
     }
     return frcNamespaceInstances.get(namespace);
   }
@@ -307,5 +311,27 @@ public class RemoteConfigComponent {
    */
   private static boolean isPrimaryApp(FirebaseApp firebaseApp) {
     return firebaseApp.getName().equals(FirebaseApp.DEFAULT_APP_NAME);
+  }
+
+  private static class GlobalBackgroundListener implements BackgroundDetector.BackgroundStateChangeListener {
+    private static AtomicReference<GlobalBackgroundListener> INSTANCE = new AtomicReference<>();
+
+    private static void ensureBackgroundListenerIsRegistered(Context context) {
+      Application application = (Application) context.getApplicationContext();
+      if (INSTANCE.get() == null) {
+        GlobalBackgroundListener globalBackgroundListener = new GlobalBackgroundListener();
+        if (INSTANCE.compareAndSet(null, globalBackgroundListener)) {
+          BackgroundDetector.initialize(application);
+          BackgroundDetector.getInstance().addListener(globalBackgroundListener);
+        }
+      }
+    }
+
+    @Override
+    public void onBackgroundStateChanged(boolean b) {
+      for (FirebaseRemoteConfig frc : frcNamespaceInstances.values()) {
+        frc.handleAutomaticRealtime(b);
+      }
+    }
   }
 }

@@ -29,7 +29,7 @@ public class ConfigRealtimeWebsocketClient {
     private final ConfigFetchHandler configFetchHandler;
     private static final Logger logger = Logger.getLogger("Real_Time_RC");
     private final String ENDPOINT = "ws://10.0.2.2:50051";
-    private final WebSocketContainer webSocketContainer;
+    private static final WebSocketContainer webSocketContainer = ContainerProvider.getWebSocketContainer();
 
     // Retry parameters
     private final Timer timer;
@@ -43,7 +43,6 @@ public class ConfigRealtimeWebsocketClient {
     public ConfigRealtimeWebsocketClient(ConfigFetchHandler configFetchHandler) {
         eventListeners = new HashMap<>();
         this.configFetchHandler = configFetchHandler;
-        this.webSocketContainer = ContainerProvider.getWebSocketContainer();
         this.clientSession = null;
         this.random = new Random(10);
         this.RETRY_MULTIPLIER = this.random.nextInt(10) + 1;

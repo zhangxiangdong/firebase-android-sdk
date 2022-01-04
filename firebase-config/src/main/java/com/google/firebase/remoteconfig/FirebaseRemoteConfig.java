@@ -14,12 +14,15 @@
 
 package com.google.firebase.remoteconfig;
 
+import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.annotation.XmlRes;
+
+import com.google.android.gms.common.api.internal.BackgroundDetector;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.FirebaseApp;
@@ -42,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -153,6 +158,7 @@ public class FirebaseRemoteConfig {
   private final ConfigMetadataClient frcMetadata;
   private final FirebaseInstallationsApi firebaseInstallations;
   private final ConfigRealtimeWebsocketClient configRealtimeWebsocketClient;
+  private boolean automaticRealtimeHandling = false;
 
   /**
    * Firebase Remote Config constructor.
@@ -687,23 +693,28 @@ public class FirebaseRemoteConfig {
   }
 
   /**
-   * Starts and stops the realtime stream if the app is in the foreground or background respectively.
+   * Starts automatic realtime handling.
    * */
   public void startAutomaticStreamHandling() {
-    this.firebaseApp.setAutomaticResourceManagementEnabled(true);
-    this.firebaseApp.addBackgroundStateChangeListener(
-            new FirebaseApp.BackgroundStateChangeListener() {
-              @Override
-              public void onBackgroundStateChanged(boolean background) {
-                if (background) {
-                  Log.i(TAG, "In background");
-                  stopRealtime();
-                } else {
-                  Log.i(TAG, "In foreground");
-                  startRealtime();
-                }
-              }
-            }
-    );
+    this.automaticRealtimeHandling = true;
   }
+
+  /**
+   * Stops automatic realtime handling.
+   * */
+  public void stopAutomaticStreamHandling() {
+    this.automaticRealtimeHandling = false;
+  }
+
+  public void handleAutomaticRealtime(boolean background) {
+    if (this.automaticRealtimeHandling) {
+      if (background) {
+        stopRealtime();
+      } else {
+        startRealtime();
+      }
+    }
+  }
+
+
 }
