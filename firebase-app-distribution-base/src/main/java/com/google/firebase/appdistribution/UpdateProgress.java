@@ -23,7 +23,7 @@ import com.google.auto.value.AutoValue;
 public abstract class UpdateProgress {
 
   @NonNull
-  static UpdateProgress.Builder builder() {
+  static Builder builder() {
     return new com.google.firebase.appdistribution.AutoValue_UpdateProgress.Builder();
   }
 
@@ -50,13 +50,13 @@ public abstract class UpdateProgress {
   abstract static class Builder {
 
     @NonNull
-    abstract UpdateProgress.Builder setApkBytesDownloaded(@NonNull long value);
+    abstract Builder setApkBytesDownloaded(@NonNull long value);
 
     @NonNull
-    abstract UpdateProgress.Builder setApkFileTotalBytes(@NonNull long value);
+    abstract Builder setApkFileTotalBytes(@NonNull long value);
 
     @NonNull
-    abstract UpdateProgress.Builder setUpdateStatus(@Nullable UpdateStatus value);
+    abstract Builder setUpdateStatus(@Nullable UpdateStatus value);
 
     @NonNull
     abstract UpdateProgress build();

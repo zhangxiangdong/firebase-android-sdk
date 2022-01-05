@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-plugins {
-    id 'firebase-java-library'
-}
+package com.google.firebase.app.distribution.ktx
 
-firebaseLibrary {
-    publishSources = true
-    publishJavadoc = false
-}
+import com.google.firebase.appdistribution.FirebaseAppDistribution
+import com.google.firebase.ktx.Firebase
 
-java {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
-}
-
-
-dependencies {
-    implementation 'androidx.annotation:annotation:1.1.0'
-
-    testImplementation 'junit:junit:4.13'
-    testImplementation "com.google.truth:truth:$googleTruthVersion"
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs << "-Werror"
-}
+/** Returns the [FirebaseAppDistribution] instance of the default [FirebaseApp]. */
+val Firebase.appDistribution: FirebaseAppDistribution
+    get() = FirebaseAppDistribution.getInstance()

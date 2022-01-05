@@ -31,4 +31,10 @@ public abstract class UpdateTask extends Task<Void> {
   @NonNull
   public abstract UpdateTask addOnProgressListener(
       @Nullable Executor executor, @NonNull OnProgressListener listener);
+
+  static UpdateTask completed() {
+    UpdateTaskImpl task = new UpdateTaskImpl();
+    task.setResult();
+    return task;
+  }
 }
