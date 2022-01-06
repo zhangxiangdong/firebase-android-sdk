@@ -46,6 +46,13 @@ def api_information(auth_token, repo_name, issue_number):
       comment_string += 'The public api surface has changed for the subproject {}:\n'.format(subproject)
       comment_string += ''.join(formatted_output_lines)
       comment_string += '\n\n'
+
+  """Compare firebase-app-distribution and firebase-app-distribution-stub APIs"""
+  if not filecmp.cmp("firebase-app-distribution/api.txt", "firebase-app-distribution-stub/api.txt", shallow=False)
+    comment_string += ('The public api surface for firebase-app-distribution and '
+                       'firebase-app-distribution-stub do not match. Please resolve the differences and '
+                       'regenerate the api.txt files.\n\n'
+
   if comment_string:
     comment_string += ('Please update the api.txt files for the subprojects being affected by this change '
                        'by running ./gradlew ${subproject}:generateApiTxtFile. Also perform a major/minor bump accordingly.\n')
