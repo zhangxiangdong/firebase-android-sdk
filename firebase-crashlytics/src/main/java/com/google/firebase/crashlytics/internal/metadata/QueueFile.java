@@ -196,10 +196,15 @@ class QueueFile implements Closeable {
   }
 
   /** Atomically initializes a new file. */
-  private static void initialize(File file) throws IOException {
+  private synchronized static void initialize(File file) throws IOException {
+    // Double-check, in case another thread initialized the file while this thread was blocked.
+    if (file.exists()) {
+      return;
+    }
     // Use a temp file so we don't leave a partially-initialized file.
     File tempFile = new File(file.getPath() + ".tmp");
     RandomAccessFile raf = open(tempFile);
+
     try {
       raf.setLength(INITIAL_LENGTH);
       raf.seek(0);
