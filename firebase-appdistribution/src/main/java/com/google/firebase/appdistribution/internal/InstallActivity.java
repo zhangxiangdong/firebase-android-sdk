@@ -169,9 +169,4 @@ public class InstallActivity extends AppCompatActivity {
     LogWrapper.getInstance().v("Kicking off install as new activity");
     startActivity(intent);
   }
-
-  @VisibleForTesting
-  FirebaseAppDistribution getFirebaseAppDistributionInstance() {
-    return FirebaseAppDistribution.getInstance();
-  }
 }
